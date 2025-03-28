@@ -265,7 +265,6 @@ const Metro = () => {
 
   const handleBookTicketPress = async () => {
     if (fromStationObj && toStationObj && numPeople) {
-      // Fetch fare before showing payment modal
       await fetchFareFromServer();
       setShowPayment(true);
     }
@@ -480,21 +479,7 @@ const Metro = () => {
             </View>
           </View>
 
-          {/* Booking Button */}
-          <TouchableOpacity
-            className={`p-4 rounded-lg mb-6 shadow-md flex-row justify-center items-center ${fromStationObj && toStationObj ? 'bg-green-600' : 'bg-gray-600'}`}
-            onPress={() => {
-              if (fromStationObj && toStationObj && numPeople) {
-                setShowPayment(true);
-              }
-            }}
-            disabled={!fromStationObj || !toStationObj}
-          >
-            <FontAwesome5 name="ticket-alt" size={16} color="white" style={{ marginRight: 8 }} />
-            <Text className='text-white text-center font-bold text-lg'>Book Tickets</Text>
-          </TouchableOpacity>
 
-          {/* Booking History Toggle */}
           <TouchableOpacity
           className={`p-4 rounded-lg mb-6 shadow-md flex-row justify-center items-center ${fromStationObj && toStationObj ? 'bg-green-600' : 'bg-gray-600'}`}
           onPress={handleBookTicketPress}
@@ -637,13 +622,13 @@ const Metro = () => {
 
                     <View className='items-center'>
                       <MaterialIcons name="timer" size={18} color="#64748b" />
-                      <Text className='text-white mt-1'>{getEstimatedTime()}</Text>
+                      <Text className='text-white mt-1'>{duration}</Text>
                       <Text className='text-gray-400 text-xs'>Duration</Text>
                     </View>
 
                     <View className='items-center'>
                       <FontAwesome5 name="route" size={16} color="#64748b" />
-                      <Text className='text-white mt-1'>10 km</Text>
+                      <Text className='text-white mt-1'>{distance}</Text>
                       <Text className='text-gray-400 text-xs'>Distance</Text>
                     </View>
                   </View>
@@ -654,18 +639,12 @@ const Metro = () => {
                   <Text className='text-white font-bold text-lg mb-2'>Fare Breakdown</Text>
                   <View className='flex-row justify-between mb-1'>
                     <Text className='text-gray-300'>Base Fare</Text>
-                    <Text className='text-gray-300'>₹30.00</Text>
+                    <Text className='text-gray-300'>{fare}</Text>
                   </View>
                   <View className='flex-row justify-between mb-1'>
                     <Text className='text-gray-300'>Passengers</Text>
                     <Text className='text-gray-300'>x {numPeople}</Text>
                   </View>
-                  {parseInt(numPeople, 10) > 3 && (
-                    <View className='flex-row justify-between mb-1'>
-                      <Text className='text-green-500'>Group Discount</Text>
-                      <Text className='text-green-500'>-₹{parseInt(numPeople, 10) * 3}</Text>
-                    </View>
-                  )}
                   <View className='border-t border-gray-700 my-2' />
                   <View className='flex-row justify-between'>
                     <Text className='text-white font-bold'>Total Fare</Text>
