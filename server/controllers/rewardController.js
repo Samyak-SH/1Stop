@@ -11,9 +11,13 @@ const submitReward = async (req, res) => {
     const uid = req.headers["authorization"]?.split(" ")[1];
 
     if (!billType || !image) {
-      console.log("req received, but missing billType or image");
+      console.log("Request received, but missing billType or image");
       console.log("billType:", billType);
-      console.log("image:", image);
+      console.log(
+        "image:",
+        typeof image,
+        image ? image.substring(0, 50) + "..." : "N/A"
+      );
       return res.status(400).json({ error: "billType and image are required" });
     }
 
@@ -88,58 +92,68 @@ const submitReward = async (req, res) => {
 
       if (code !== 0) {
         console.error(`Python script error: ${stderrData}`);
-        return res
-          .status(500)
-          .json({ error: "Failed to process the image", details: stderrData });
+        return res.status(500).json({
+          error: "Failed to process the image",
+          details: stderrData,
+        });
       }
 
+      console.log("Full stdout data:", stdoutData);
+
       try {
-        const jsonMatch = stdoutData.match(/\{.*\}/s);
+        // More robust JSON extraction
+        const jsonMatch = stdoutData.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
-          throw new Error("No JSON found in Python script output");
+          console.error("No valid JSON found in output");
+          console.error("Raw output:", stdoutData);
+          return res.status(500).json({
+            error: "No valid JSON found",
+            details: stdoutData,
+          });
         }
+
         const jsonString = jsonMatch[0];
+        console.log("Extracted JSON:", jsonString);
+
         const result = JSON.parse(jsonString);
+        console.log("Parsed Result:", JSON.stringify(result, null, 2));
 
-        // Log the full result for debugging
-        console.log("Full Result:", JSON.stringify(result, null, 2));
-
-        // Based on the actual response structure
-        if (result.statusCode !== 200) {
-          console.log(
-            `Verification failed: ${result.body.error || "Unknown error"}`
-          );
-          return res
-            .status(result.statusCode)
-            .json({ error: result.body.error || "Verification failed" });
+        // More comprehensive error handling
+        if (!result || result.statusCode !== 200) {
+          console.log(`Verification failed:`, result);
+          return res.status(result?.statusCode || 500).json({
+            error: result?.body?.error || "Verification failed",
+          });
         }
 
-        // Access the deeply nested body
-        const responseBody = result.body.body;
-        //
+        // Safely access nested properties
+        const responseBody = result.body?.body || result.body;
+
         updatePoints(uid, responseBody);
-        //
+
         res.status(200).json({
           message: responseBody.message,
           points: responseBody.points,
           details: responseBody.details,
           consumption_units: responseBody.consumption_units,
-          total_amount: responseBody.details["Total Amount"],
+          total_amount: responseBody.details?.["Total Amount"],
         });
       } catch (error) {
-        console.error(`Error parsing Python script output: ${error.message}`);
-        console.error("stdoutData:", stdoutData);
+        console.error(`Error parsing Python script output:`, error);
+        console.error("Raw stdoutData:", stdoutData);
         res.status(500).json({
-          error: "Failed to parse response from Lambda",
+          error: "Failed to parse response",
           details: error.message,
+          rawOutput: stdoutData,
         });
       }
     });
   } catch (error) {
-    console.error(`Error in submitReward: ${error.message}`);
-    res
-      .status(500)
-      .json({ error: "Internal server error", details: error.message });
+    console.error(`Error in submitReward:`, error);
+    res.status(500).json({
+      error: "Internal server error",
+      details: error.message,
+    });
   }
 };
 
