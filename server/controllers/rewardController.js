@@ -4,9 +4,9 @@ const fs = require("fs").promises;
 const os = require("os");
 
 const submitReward = async (req, res) => {
-  let tempFilePath = null;
-  try {
-    const { billType, image } = req.body;
+    let tempFilePath = null;
+    try {
+        const { billType, image } = req.body;
 
     if (!billType || !image) {
       console.log("req received, but missing billType or image");
@@ -63,9 +63,9 @@ const submitReward = async (req, res) => {
       stdoutData += data.toString();
     });
 
-    pythonProcess.stderr.on("data", (data) => {
-      stderrData += data.toString();
-    });
+        pythonProcess.stderr.on('data', (data) => {
+            stderrData += data.toString();
+        });
 
     pythonProcess.on("error", (error) => {
       console.error("Python process error:", error.message);
@@ -75,16 +75,15 @@ const submitReward = async (req, res) => {
           error: "Failed to execute Python script",
           details: error.message,
         });
-    });
 
-    pythonProcess.on("close", async (code) => {
-      try {
-        if (tempFilePath) {
-          await fs.unlink(tempFilePath);
-        }
-      } catch (error) {
-        console.error("Error deleting temporary file:", error.message);
-      }
+        pythonProcess.on('close', async (code) => {
+            try {
+                if (tempFilePath) {
+                    await fs.unlink(tempFilePath);
+                }
+            } catch (error) {
+                console.error("Error deleting temporary file:", error.message);
+            }
 
       if (code !== 0) {
         console.error(`Python script error: ${stderrData}`);
@@ -93,47 +92,43 @@ const submitReward = async (req, res) => {
           .json({ error: "Failed to process the image", details: stderrData });
       }
 
-      try {
-        const jsonMatch = stdoutData.match(/\{.*\}/s);
-        if (!jsonMatch) {
-          throw new Error("No JSON found in Python script output");
-        }
-        const jsonString = jsonMatch[0];
-        const result = JSON.parse(jsonString);
-        console.log(result);
-        const { statusCode, body } = result;
+            try {
+                const jsonMatch = stdoutData.match(/\{.*\}/s);
+                if (!jsonMatch) {
+                    throw new Error("No JSON found in Python script output");
+                }
+                const jsonString = jsonMatch[0];
+                const result = JSON.parse(jsonString);
 
-        if (statusCode !== 200) {
-          console.log(`Verification failed: ${body.error || "Unknown error"}`);
-          return res
-            .status(statusCode)
-            .json({ error: body.error || "Verification failed" });
-        }
-        //DB IDHAR BHARNA H OK?
-        res.status(200).json({
-          message: body.message,
-          points: body.points,
-          details: body.details,
-          within_last_three_days: body.within_last_three_days || undefined,
-          consumption_units: body.consumption_units || undefined,
+                // Log the full result for debugging
+                console.log("Full Result:", JSON.stringify(result, null, 2));
+
+                // Based on the actual response structure
+                if (result.statusCode !== 200) {
+                    console.log(`Verification failed: ${result.body.error || 'Unknown error'}`);
+                    return res.status(result.statusCode).json({ error: result.body.error || 'Verification failed' });
+                }
+
+                // Access the deeply nested body
+                const responseBody = result.body.body;
+
+                res.status(200).json({
+                    message: responseBody.message,
+                    points: responseBody.points,
+                    details: responseBody.details,
+                    consumption_units: responseBody.consumption_units,
+                    total_amount: responseBody.details['Total Amount']
+                });
+            } catch (error) {
+                console.error(`Error parsing Python script output: ${error.message}`);
+                console.error("stdoutData:", stdoutData);
+                res.status(500).json({ error: 'Failed to parse response from Lambda', details: error.message });
+            }
         });
-      } catch (error) {
-        console.error(`Error parsing Python script output: ${error.message}`);
-        console.error("stdoutData:", stdoutData);
-        res
-          .status(500)
-          .json({
-            error: "Failed to parse response from Lambda",
-            details: error.message,
-          });
-      }
-    });
-  } catch (error) {
-    console.error(`Error in submitReward: ${error.message}`);
-    res
-      .status(500)
-      .json({ error: "Internal server error", details: error.message });
-  }
+    } catch (error) {
+        console.error(`Error in submitReward: ${error.message}`);
+        res.status(500).json({ error: 'Internal server error', details: error.message });
+    }
 };
 
 module.exports = { submitReward };

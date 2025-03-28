@@ -1,5 +1,9 @@
+<<<<<<< HEAD
+require("dotenv").config({ path: '.env' });
+=======
 require("dotenv").config({ path: './.env' });
 const {app, startServer, cors, express} = require("./utils/util.js");
+>>>>>>> a7bf71266c888125ea398b5120ec989b06afb5fb
 
 const { calcMetroFare } = require("./googleFucntions");
 const { submitReward } = require("./controllers/rewardController");
