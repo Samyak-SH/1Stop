@@ -96,7 +96,7 @@ const Metro = () => {
     try {
       const originCoords = `${fromStationObj.coordinates[0]},${fromStationObj.coordinates[1]}`;
       const destCoords = `${toStationObj.coordinates[0]},${toStationObj.coordinates[1]}`;
-      const url = `http://192.168.1.201:8000/distance?origin=${originCoords}&destination=${destCoords}&transit_mode=rail`;
+      const url = `http://192.168.141.110:8080/metrofare?origin=${originCoords}&destination=${destCoords}&transit_mode=rail`;
       
       const response = await fetch(url);
       
@@ -105,6 +105,7 @@ const Metro = () => {
       }
       
       const data: FareResponse = await response.json();
+      console.log(data);
       
       // Update state with server response
       setFare(data.fare * parseInt(numPeople, 10)); // Multiply by number of people

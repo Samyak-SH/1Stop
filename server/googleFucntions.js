@@ -4,8 +4,9 @@ const responseType = "json" // or xml
 const BASE_URL = `https://maps.googleapis.com/maps/api/distancematrix/${responseType}`;
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
-async function calDistance(req,res){
+async function calcMetroFare(req,res){
     // console.log(req.query);
+    console.log("calcmetrofare");
 
     const {origin, destination, transit_mode} = req.query; //deconstruct req.query to obtain origin and destination coords given by user
     //todo get transit type from user, so that fucntion can be used for both bus and rail(metro)
@@ -69,4 +70,4 @@ function calcFare(distance){
     }
 }
 
-module.exports = {calDistance};
+module.exports = {calcMetroFare};
