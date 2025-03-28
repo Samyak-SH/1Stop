@@ -2,6 +2,7 @@ const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs").promises;
 const os = require("os");
+const { updatePoints } = require("./userController");
 
 const submitReward = async (req, res) => {
   let tempFilePath = null;
@@ -116,10 +117,7 @@ const submitReward = async (req, res) => {
         // Access the deeply nested body
         const responseBody = result.body.body;
         //
-        async function updatePoints(uid, responseBody) {
-          const { points, details } = responseBody;
-          const uid = uid;
-        }
+        updatePoints(uid, responseBody);
         //
         res.status(200).json({
           message: responseBody.message,

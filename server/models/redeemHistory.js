@@ -6,11 +6,6 @@ const redeemHistorySchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
-  trans_id: {
-    type: String,
-    required: true,
-    unique: true,
-  },
   type: {
     type: String,
     enum: ["bus", "metro", "electricity", "recycling_reward"],

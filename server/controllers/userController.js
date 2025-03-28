@@ -1,4 +1,5 @@
 const User = require("../models/user");
+const RedeemHistoryModel = require("../models/redeemHistory");
 
 async function createUser(req, res) {
   const { name, phone } = req.body;
@@ -25,4 +26,13 @@ async function getUser(req, res) {
     res.status(500).json({ messafe: "ab aur nhi ho rha" });
   }
 }
-module.exports = { createUser, getUser };
+
+async function updatePoints(uid, responseBody) {
+  const { points } = responseBody;
+  const { billType } = req.body;
+  const uid = uid;
+  const redeemHistory = await User.findByIdAndUpdate(uid, {
+    $inc: { points: points },
+  });
+}
+module.exports = { createUser, getUser, updatePoints };
