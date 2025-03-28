@@ -26,6 +26,7 @@ async function createBooking(req, res) {
 
 async function getHistory(req, res) {
   const uid = req.headers["authorization"]?.split(" ")[1];
+  console.log(uid, "uid in gethistory");
   try {
     const bookingHistory = await BookingHistoryModel.find({ uid });
     res.status(200).json({ bookingHistory });

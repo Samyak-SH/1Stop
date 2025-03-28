@@ -25,6 +25,7 @@ import axios from "axios";
 import { SERVER_URL, GOOGLE_API_KEY } from "@env";
 import { getUID } from "@/data/uidController";
 import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
+import { resolvePath } from "react-router-native";
 
 // Define interface for station data
 interface Station {
@@ -98,29 +99,19 @@ const Metro = () => {
       console.log("Fetching booking history from server...");
       // const uid = await getUID();
       const uid = "67e6f810732294a7f6e6d379";
-      const response = await fetch(
-        "http://192.168.1.201:8000/booking-history",
-        {
-          headers: {
-            "Content-Type": "application/json",
-            authorization: `Bearer ${uid}`,
-          },
-        }
-      );
-      //CHECK Maadi
-      /*
+      const response = await axios.get(`${SERVER_URL}/booking-history`, {
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${uid}`,
+        },
+      });
 
+      // if (!response.ok) {
+      //   throw new Error(`Server responded with status: ${response.status}`);
+      // }
 
-
-
-
-      */
-
-      if (!response.ok) {
-        throw new Error(`Server responded with status: ${response.status}`);
-      }
-
-      const data: BookingHistory[] = await response.json();
+      // const data: BookingHistory[] = await response.json();
+      const data = response.data;
       setBookingHistory(data);
     } catch (error) {
       console.error("Error fetching booking history:", error);
@@ -209,26 +200,27 @@ const Metro = () => {
       };
       // const uid = await getUID();
       const uid = "67e6f810732294a7f6e6d379";
-      // CONFIRM IT..;.;.;.;.;.;.;
-      /*
 
-
-
-
-
-*/
-      const response = await fetch("http://192.168.1.201:8000/create-booking", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          authorization: `Bearer ${uid}`,
-        },
-        body: JSON.stringify(bookingData),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server responded with status: ${response.status}`);
-      }
+      const response = await axios
+        .post(`${SERVER_URL}/create-booking`, bookingData, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${uid}`,
+          },
+        })
+        .then((response) => {
+          console.log("Booking successful:", response.data);
+          fetchBookingHistory(); // Refresh booking history after successful booking
+        })
+        .catch((error) => {
+          console.error("Error creating booking:", error);
+        })
+        .finally(() => {
+          console.log("Booking process completed.");
+        });
+      // if (!response.ok) {
+      //   throw new Error(`Server responded with status: ${response.status}`);
+      // }
 
       // Refresh booking history after creating a new booking
       fetchBookingHistory();
