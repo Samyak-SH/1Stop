@@ -7,10 +7,13 @@ const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 async function calcMetroFare(req,res){
     // console.log(req.query);
     console.log("calcmetrofare");
+    console.log(GOOGLE_API_KEY);
 
     const {origin, destination, transit_mode} = req.query; //deconstruct req.query to obtain origin and destination coords given by user
+    console.log(req.query);
     //todo get transit type from user, so that fucntion can be used for both bus and rail(metro)
     try{
+        console.log("fetching distance")
         const response = await axios.get(BASE_URL,{
             params : {
                 origins : origin,
@@ -19,9 +22,8 @@ async function calcMetroFare(req,res){
                 transit_mode : transit_mode,//rail for metro and ig bus for bus not sure
                 key : GOOGLE_API_KEY
             }
-        })
+        }).then(console.log("req bhej diya"))
         const data = response.data;
-        // console.log("data", data);
         if(data.status === "OK"){
             const distance = data.rows[0].elements[0].distance.value //in meters
             const duration = data.rows[0].elements[0].duration.value //in seconds

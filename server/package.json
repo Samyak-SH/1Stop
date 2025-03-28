@@ -12,10 +12,7 @@
   "description": "",
   "dependencies": {
     "axios": "^1.8.4",
-<<<<<<< HEAD
     "cords": "^1.0.4",
-=======
->>>>>>> 7faa75176774564a1d5a277c0b1a7892450fdc53
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
