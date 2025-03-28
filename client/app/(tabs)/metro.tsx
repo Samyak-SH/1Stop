@@ -2,6 +2,9 @@ import { StyleSheet, Text, View, TextInput, ScrollView, TouchableOpacity, Modal,
 import React, { useState, useEffect } from 'react'
 import { Ionicons, FontAwesome5, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { stationData } from '@/data/metro'
+import axios from 'axios';
+
+import { SERVER_URL, GOOGLE_API_KEY } from '@env';
 
 // Define interface for station data
 interface Station {
@@ -32,7 +35,7 @@ interface BookingHistory {
 
 // Get line color for UI elements
 const getLineColor = (line: string): string => {
-  switch(line.toLowerCase()) {
+  switch (line.toLowerCase()) {
     case 'green': return '#008000';
     case 'purple': return '#800080';
     case 'yellow': return '#FFD700';
@@ -65,14 +68,15 @@ const Metro = () => {
   const fetchBookingHistory = async (): Promise<void> => {
     setLoadingHistory(true);
     try {
-      const response = await fetch('http://192.168.1.201:8000/booking-history');
-      
-      if (!response.ok) {
-        throw new Error(`Server responded with status: ${response.status}`);
-      }
-      
-      const data: BookingHistory[] = await response.json();
-      setBookingHistory(data);
+      console.log("Fetching booking history from server...");
+      // const response = await fetch('http://192.168.1.201:8000/booking-history');
+
+      // if (!response.ok) {
+      //   throw new Error(`Server responded with status: ${response.status}`);
+      // }
+
+      // const data: BookingHistory[] = await response.json();
+      // setBookingHistory(data);
     } catch (error) {
       console.error("Error fetching booking history:", error);
       // Set empty array on error
@@ -111,31 +115,33 @@ const Metro = () => {
 
   // Calculate fare from server
   const fetchFareFromServer = async (): Promise<void> => {
+    console.log("server url", SERVER_URL);
     if (!fromStationObj || !toStationObj) return;
-    
+
     setIsLoading(true);
     setErrorMessage("");
-    
     try {
       const originCoords = `${fromStationObj.coordinates[0]},${fromStationObj.coordinates[1]}`;
       const destCoords = `${toStationObj.coordinates[0]},${toStationObj.coordinates[1]}`;
-      const url = `http://192.168.1.201:8000/distance?origin=${originCoords}&destination=${destCoords}&transit_mode=rail`;
-      
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`Server responded with status: ${response.status}`);
-      }
-      
-      const data: FareResponse = await response.json();
-      
-      // Update state with server response - store base fare without multiplying
+
+      const response = await axios.get(`${SERVER_URL}/metrofare`, {
+        params: {
+          origin: originCoords,
+          destination: destCoords,
+          numPeople: numPeople,
+          transit_mode: 'rail'
+        }
+      })
+
+      const data = response.data;
+      console.log(data);
+
       setFare(data.fare);
       setDistance(data.distance);
       setDuration(data.duration);
-      
+
     } catch (error) {
-      console.error("Error fetching fare:", error);
+      console.error("Error fetching fare heheheh:", error);
       setErrorMessage("Failed to calculate fare. Using estimate instead.");
       // Fallback to simple calculation - base fare
       setFare(30);
@@ -147,7 +153,7 @@ const Metro = () => {
   // Create a new booking
   const createBooking = async (): Promise<boolean> => {
     if (!fromStationObj || !toStationObj) return false;
-    
+
     try {
       const bookingData = {
         fromStation: fromStationObj.name,
@@ -157,7 +163,7 @@ const Metro = () => {
         passengers: parseInt(numPeople, 10),
         fare: calculateTotalFare()
       };
-      
+
       const response = await fetch('http://192.168.1.201:8000/create-booking', {
         method: 'POST',
         headers: {
@@ -165,11 +171,11 @@ const Metro = () => {
         },
         body: JSON.stringify(bookingData)
       });
-      
+
       if (!response.ok) {
         throw new Error(`Server responded with status: ${response.status}`);
       }
-      
+
       // Refresh booking history after creating a new booking
       fetchBookingHistory();
       return true;
@@ -180,11 +186,11 @@ const Metro = () => {
   };
 
   // Trigger fare calculation when stations are selected
-  useEffect(() => {
-    if (fromStationObj && toStationObj) {
-      fetchFareFromServer();
-    }
-  }, [fromStationObj, toStationObj]);
+  // useEffect(() => {
+  //   if (fromStationObj && toStationObj) {
+  //     fetchFareFromServer();
+  //   }
+  // }, [fromStationObj, toStationObj]);
 
   // Filter stations based on input
   useEffect(() => {
@@ -196,7 +202,7 @@ const Metro = () => {
           // Prioritize stations that start with the input
           const aStartsWith = a.name.toLowerCase().startsWith(input);
           const bStartsWith = b.name.toLowerCase().startsWith(input);
-          
+
           if (aStartsWith && !bStartsWith) return -1;
           if (!aStartsWith && bStartsWith) return 1;
           return a.name.localeCompare(b.name); // Alphabetical order as tiebreaker
@@ -216,7 +222,7 @@ const Metro = () => {
           // Prioritize stations that start with the input
           const aStartsWith = a.name.toLowerCase().startsWith(input);
           const bStartsWith = b.name.toLowerCase().startsWith(input);
-          
+
           if (aStartsWith && !bStartsWith) return -1;
           if (!aStartsWith && bStartsWith) return 1;
           return a.name.localeCompare(b.name); // Alphabetical order as tiebreaker
@@ -257,6 +263,14 @@ const Metro = () => {
     setShowToSuggestions(false);
   };
 
+  const handleBookTicketPress = async () => {
+    if (fromStationObj && toStationObj && numPeople) {
+      // Fetch fare before showing payment modal
+      await fetchFareFromServer();
+      setShowPayment(true);
+    }
+  };
+
   // Calculate fare for display (now correctly multiplying by passenger count)
   const calculateTotalFare = (): number => {
     const baseFare = fare || 30;
@@ -275,7 +289,7 @@ const Metro = () => {
   // Handle successful payment and booking
   const handlePayment = async () => {
     const success = await createBooking();
-    
+
     if (success) {
       setShowPayment(false);
       // Reset form after successful payment
@@ -293,22 +307,21 @@ const Metro = () => {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
       <ScrollView className='flex-1 bg-black'>
         <TouchableOpacity activeOpacity={1} onPress={handleOutsidePress} className='p-4'>
-          <Text className='text-white text-2xl font-bold mb-6 text-center'>Metro Ticket Booking</Text>
-          
+          <Text className='text-white text-2xl font-bold mb-6 text-center'></Text>
           {/* Improved Journey Selector UI */}
           <View className='bg-gray-900 rounded-lg p-4 mb-6 shadow-md'>
             <View className='flex-row items-center justify-between mb-4'>
               <Text className='text-white font-bold text-lg'>Plan Your Journey</Text>
               <MaterialCommunityIcons name="swap-vertical" size={24} color="#64748b" />
             </View>
-            
+
             {/* From - To Visual Connection */}
             <View className='flex-row mb-1'>
               <View className='items-center mr-3 mt-2'>
@@ -320,7 +333,7 @@ const Metro = () => {
                   <FontAwesome5 name="map-marker" size={14} color="white" />
                 </View>
               </View>
-              
+
               <View className='flex-1'>
                 {/* From Station Input - Improved */}
                 <View className='mb-3'>
@@ -342,9 +355,9 @@ const Metro = () => {
                     )}
                   </View>
                   {showFromSuggestions && filteredFromStations.length > 0 && (
-                    <ScrollView 
+                    <ScrollView
                       className='max-h-40 bg-gray-800 rounded-lg mt-1 shadow-lg'
-                      style={{ 
+                      style={{
                         maxHeight: keyboardVisible ? 150 : 160,
                         position: 'absolute',
                         width: '100%',
@@ -361,10 +374,10 @@ const Metro = () => {
                           onPress={() => handleSelectFromStation(station)}
                         >
                           <View className='flex-row items-center'>
-                            <View style={{ 
-                              width: 12, 
-                              height: 12, 
-                              borderRadius: 6, 
+                            <View style={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: 6,
                               backgroundColor: getLineColor(station.line),
                               marginRight: 8
                             }} />
@@ -375,7 +388,7 @@ const Metro = () => {
                     </ScrollView>
                   )}
                 </View>
-                
+
                 {/* To Station Input - Improved */}
                 <View>
                   <Text className='text-gray-400 text-xs mb-1'>TO</Text>
@@ -396,9 +409,9 @@ const Metro = () => {
                     )}
                   </View>
                   {showToSuggestions && filteredToStations.length > 0 && (
-                    <ScrollView 
+                    <ScrollView
                       className='max-h-40 bg-gray-800 rounded-lg mt-1 shadow-lg'
-                      style={{ 
+                      style={{
                         maxHeight: keyboardVisible ? 150 : 160,
                         position: 'absolute',
                         width: '100%',
@@ -415,10 +428,10 @@ const Metro = () => {
                           onPress={() => handleSelectToStation(station)}
                         >
                           <View className='flex-row items-center'>
-                            <View style={{ 
-                              width: 12, 
-                              height: 12, 
-                              borderRadius: 6, 
+                            <View style={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: 6,
                               backgroundColor: getLineColor(station.line),
                               marginRight: 8
                             }} />
@@ -432,17 +445,17 @@ const Metro = () => {
               </View>
             </View>
           </View>
-        
+
           {/* Number of People - Improved UI */}
-          <View className='bg-gray-900 rounded-lg p-4 mb-6 shadow-md'>
+          <View className='bg-gray-900 rounded-lg p-4 mb-6 shadow-md -z-10'>
             <Text className='text-white font-bold text-lg mb-3'>Passengers</Text>
             <View className='flex-row items-center justify-between'>
               <View className='flex-row items-center'>
-                <FontAwesome5 name="users" size={18} color="#64748b" style={{marginRight: 10}} />
+                <FontAwesome5 name="users" size={18} color="#64748b" style={{ marginRight: 10 }} />
                 <Text className='text-white'>Number of People</Text>
               </View>
               <View className='flex-row items-center bg-gray-800 rounded-lg'>
-                <TouchableOpacity 
+                <TouchableOpacity
                   className='p-3'
                   onPress={() => setNumPeople(Math.max(1, parseInt(numPeople) - 1).toString())}
                 >
@@ -457,7 +470,7 @@ const Metro = () => {
                   }}
                   keyboardType="numeric"
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   className='p-3'
                   onPress={() => setNumPeople((parseInt(numPeople) + 1).toString())}
                 >
@@ -466,9 +479,9 @@ const Metro = () => {
               </View>
             </View>
           </View>
-          
+
           {/* Booking Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             className={`p-4 rounded-lg mb-6 shadow-md flex-row justify-center items-center ${fromStationObj && toStationObj ? 'bg-green-600' : 'bg-gray-600'}`}
             onPress={() => {
               if (fromStationObj && toStationObj && numPeople) {
@@ -477,22 +490,20 @@ const Metro = () => {
             }}
             disabled={!fromStationObj || !toStationObj}
           >
-            <FontAwesome5 name="ticket-alt" size={16} color="white" style={{marginRight: 8}} />
+            <FontAwesome5 name="ticket-alt" size={16} color="white" style={{ marginRight: 8 }} />
             <Text className='text-white text-center font-bold text-lg'>Book Tickets</Text>
           </TouchableOpacity>
-          
+
           {/* Booking History Toggle */}
-          <TouchableOpacity 
-            className='flex-row items-center justify-between p-4 bg-gray-900 rounded-lg mb-2 shadow-md'
-            onPress={() => setShowHistory(!showHistory)}
-          >
-            <View className='flex-row items-center'>
-              <MaterialCommunityIcons name="history" size={22} color="#64748b" style={{marginRight: 10}} />
-              <Text className='text-white font-bold'>Booking History</Text>
-            </View>
-            <Ionicons name={showHistory ? "chevron-up" : "chevron-down"} size={22} color="#64748b" />
-          </TouchableOpacity>
-          
+          <TouchableOpacity
+          className={`p-4 rounded-lg mb-6 shadow-md flex-row justify-center items-center ${fromStationObj && toStationObj ? 'bg-green-600' : 'bg-gray-600'}`}
+          onPress={handleBookTicketPress}
+          disabled={!fromStationObj || !toStationObj}
+        >
+          <FontAwesome5 name="ticket-alt" size={16} color="white" style={{ marginRight: 8 }} />
+          <Text className='text-white text-center font-bold text-lg'>Book Tickets</Text>
+        </TouchableOpacity>
+
           {/* Booking History Section */}
           {showHistory && (
             <View className='bg-gray-900 rounded-lg p-1 mb-6 shadow-md'>
@@ -508,7 +519,7 @@ const Metro = () => {
                       <Text className='text-white font-bold'>{booking.date}</Text>
                       <Text className='text-green-500 font-bold'>₹{booking.fare}</Text>
                     </View>
-                    
+
                     <View className='flex-row items-center'>
                       <View className='items-center mr-3'>
                         <View style={{
@@ -525,12 +536,12 @@ const Metro = () => {
                           backgroundColor: getLineColor(booking.toLine)
                         }} />
                       </View>
-                      
+
                       <View className='flex-1'>
                         <Text className='text-white'>{booking.fromStation}</Text>
                         <Text className='text-white'>{booking.toStation}</Text>
                       </View>
-                      
+
                       <View className='flex-row items-center'>
                         <FontAwesome5 name="user" size={12} color="#64748b" />
                         <Text className='text-gray-400 ml-1'>x{booking.passengers}</Text>
@@ -545,7 +556,7 @@ const Metro = () => {
               )}
             </View>
           )}
-          
+
           {/* Enhanced Payment Modal */}
           <Modal
             visible={showPayment}
@@ -557,18 +568,18 @@ const Metro = () => {
                 {/* Header with close button */}
                 <View className='flex-row justify-between items-center mb-6'>
                   <Text className='text-white text-xl font-bold'>Payment Gateway</Text>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     className='h-8 w-8 rounded-full bg-gray-800 flex items-center justify-center'
                     onPress={() => setShowPayment(false)}
                   >
                     <Ionicons name="close" size={18} color="white" />
                   </TouchableOpacity>
                 </View>
-                
+
                 {/* Journey Details with Visual Elements */}
                 <View className='bg-gray-800 rounded-lg p-4 mb-6'>
                   <Text className='text-white font-bold text-lg mb-3'>Journey Details</Text>
-                  
+
                   {/* From-To Visual Connection */}
                   <View className='flex-row mb-4'>
                     <View className='items-center mr-4'>
@@ -580,7 +591,7 @@ const Metro = () => {
                         <Ionicons name="location" size={16} color="white" />
                       </View>
                     </View>
-                    
+
                     <View className='flex-1'>
                       <View className='mb-3'>
                         <Text className='text-gray-400 text-xs'>FROM</Text>
@@ -597,7 +608,7 @@ const Metro = () => {
                           )}
                         </View>
                       </View>
-                      
+
                       <View className='mt-8'>
                         <Text className='text-gray-400 text-xs'>TO</Text>
                         <View className='flex-row items-center'>
@@ -615,7 +626,7 @@ const Metro = () => {
                       </View>
                     </View>
                   </View>
-                  
+
                   {/* Additional Journey Info */}
                   <View className='flex-row justify-between border-t border-gray-700 pt-3'>
                     <View className='items-center'>
@@ -623,13 +634,13 @@ const Metro = () => {
                       <Text className='text-white mt-1'>{numPeople}</Text>
                       <Text className='text-gray-400 text-xs'>Passengers</Text>
                     </View>
-                    
+
                     <View className='items-center'>
                       <MaterialIcons name="timer" size={18} color="#64748b" />
                       <Text className='text-white mt-1'>{getEstimatedTime()}</Text>
                       <Text className='text-gray-400 text-xs'>Duration</Text>
                     </View>
-                    
+
                     <View className='items-center'>
                       <FontAwesome5 name="route" size={16} color="#64748b" />
                       <Text className='text-white mt-1'>10 km</Text>
@@ -637,7 +648,7 @@ const Metro = () => {
                     </View>
                   </View>
                 </View>
-                
+
                 {/* Payment Summary */}
                 <View className='mb-6'>
                   <Text className='text-white font-bold text-lg mb-2'>Fare Breakdown</Text>
@@ -661,9 +672,9 @@ const Metro = () => {
                     <Text className='text-white font-bold'>₹{calculateTotalFare()}</Text>
                   </View>
                 </View>
-                
+
                 {/* Payment Buttons */}
-                <TouchableOpacity 
+                <TouchableOpacity
                   className='bg-blue-600 p-4 rounded-lg mb-3 flex-row justify-center items-center'
                   onPress={handlePayment}
                 >
@@ -671,17 +682,17 @@ const Metro = () => {
                     <ActivityIndicator size="small" color="white" />
                   ) : (
                     <>
-                      <FontAwesome5 name="credit-card" size={16} color="white" style={{marginRight: 8}} />
+                      <FontAwesome5 name="credit-card" size={16} color="white" style={{ marginRight: 8 }} />
                       <Text className='text-white text-center font-bold'>Pay ₹{calculateTotalFare()}</Text>
                     </>
                   )}
                 </TouchableOpacity>
-                
+
                 {errorMessage ? (
                   <Text className='text-red-500 text-center mb-3'>{errorMessage}</Text>
                 ) : null}
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   className='border border-gray-600 p-3 rounded-lg'
                   onPress={() => setShowPayment(false)}
                 >

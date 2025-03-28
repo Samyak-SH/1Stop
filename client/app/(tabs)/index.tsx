@@ -11,10 +11,19 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
+  FlatList,
+  Alert,
+  ActivityIndicator,
+  Dimensions,
+  ScrollView as RNScrollView,
 } from "react-native";
-import React, { useRef, useState, useCallback, useMemo } from "react";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useRef, useState, useCallback, useMemo, useEffect } from "react";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import MyMap, { MyMapRef } from "@/components/MyMap";
+
+// Google Places API key - should be stored in environment variables in production
+const GOOGLE_PLACES_API_KEY = "AIzaSyAztjOUm6z678zPUAWdsT9CpatrfQwSAy8";
 
 const Bus = () => {
   const mapRef = useRef<MyMapRef>(null);
@@ -23,22 +32,126 @@ const Bus = () => {
     fromLocation: "",
     toLocation: ""
   });
+  const [inputState, setInputState] = useState({
+    fromEditable: true,
+    toEditable: true
+  });
   const [routeConfirmed, setRouteConfirmed] = useState(false);
+  const [fromSuggestions, setFromSuggestions] = useState<string[]>([]);
+  const [toSuggestions, setToSuggestions] = useState<string[]>([]);
+  const [distance, setDistance] = useState("");
+  const [duration, setDuration] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Separate state update functions
-  const handleFromChange = useCallback((text: string) => {
+  // Function to fetch place predictions from Google Places API
+  const fetchPlacePredictions = async (input: string): Promise<string[]> => {
+    if (input.length <= 2) return [];
+    
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${input}&types=transit_station|bus_station&components=country:in&key=${GOOGLE_PLACES_API_KEY}`
+      );
+      console.log(response)
+      const result = await response.json();
+      console.log(result);
+      if (result.status === 'OK') {
+        return result.predictions.map((pred: any) => pred.description);
+      } else {
+        return [];
+      }
+    } catch (error) {
+      console.error('Error fetching place predictions:', error);
+      return [];
+    }
+  };
+
+  // Handle from location input with API suggestions
+  const handleFromChange = useCallback(async (text: string) => {
     setFormState(prev => ({ ...prev, fromLocation: text }));
+    
+    try {
+      if (text.length > 2) {
+        setLoading(true);
+        const suggestions = await fetchPlacePredictions(text);
+        setFromSuggestions(suggestions.slice(0, 5));
+      } else {
+        setFromSuggestions([]);
+      }
+    } catch (error) {
+      console.error('Error in handleFromChange:', error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleToChange = useCallback((text: string) => {
+  // Handle to location input with API suggestions
+  const handleToChange = useCallback(async (text: string) => {
     setFormState(prev => ({ ...prev, toLocation: text }));
+    
+    try {
+      if (text.length > 2) {
+        setLoading(true);
+        const suggestions = await fetchPlacePredictions(text);
+        setToSuggestions(suggestions.slice(0, 5));
+      } else {
+        setToSuggestions([]);
+      }
+    } catch (error) {
+      console.error('Error in handleToChange:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Select suggestion handlers - update to make inputs read-only after selection
+  const selectFromSuggestion = useCallback((suggestion: string) => {
+    setFormState(prev => ({ ...prev, fromLocation: suggestion }));
+    setFromSuggestions([]);
+    setInputState(prev => ({ ...prev, fromEditable: false }));
+    Keyboard.dismiss();
+  }, []);
+
+  const selectToSuggestion = useCallback((suggestion: string) => {
+    setFormState(prev => ({ ...prev, toLocation: suggestion }));
+    setToSuggestions([]);
+    setInputState(prev => ({ ...prev, toEditable: false }));
+    Keyboard.dismiss();
+  }, []);
+  
+  // Clear handlers for resetting inputs to editable state
+  const clearFromLocation = useCallback(() => {
+    setFormState(prev => ({ ...prev, fromLocation: "" }));
+    setInputState(prev => ({ ...prev, fromEditable: true }));
+  }, []);
+  
+  const clearToLocation = useCallback(() => {
+    setFormState(prev => ({ ...prev, toLocation: "" }));
+    setInputState(prev => ({ ...prev, toEditable: true }));
   }, []);
 
   const handleConfirmRoute = useCallback(() => {
     if (formState.fromLocation && formState.toLocation) {
-      Keyboard.dismiss();
-      setSearchModalVisible(false);
-      setRouteConfirmed(true);
+      // Check if origin and destination are the same
+      if (formState.fromLocation === formState.toLocation) {
+        setError("Origin and destination cannot be the same");
+        return;
+      }
+      
+      setError(null);
+      setLoading(true);
+
+      // Here we would normally calculate the actual route using DirectionsService
+      // For demonstration, we're using mock values
+      // In production, you would integrate with Google Directions API
+      setTimeout(() => {
+        setDistance("5.2km");
+        setDuration("30 mins");
+        setLoading(false);
+        Keyboard.dismiss();
+        setSearchModalVisible(false);
+        setRouteConfirmed(true);
+      }, 1000);
     }
   }, [formState]);
 
@@ -53,6 +166,31 @@ const Bus = () => {
   const closeSearchModal = useCallback(() => {
     Keyboard.dismiss();
     setSearchModalVisible(false);
+  }, []);
+
+  // Helper function to truncate long text with ellipsis
+  const truncateText = (text: string, maxLength: number = 30): string => {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    
+    // Find the last space before maxLength to avoid cutting words
+    const lastSpace = text.substring(0, maxLength).lastIndexOf(' ');
+    return text.substring(0, lastSpace > 0 ? lastSpace : maxLength) + '...';
+  };
+
+  // Swap origin and destination locations
+  const handleSwapLocations = useCallback(() => {
+    setFormState(prev => ({
+      fromLocation: prev.toLocation,
+      toLocation: prev.fromLocation
+    }));
+    // Keep the input state (editable or not) when swapping
+    setInputState(prev => ({
+      fromEditable: prev.toEditable,
+      toEditable: prev.fromEditable
+    }));
+    setFromSuggestions([]);
+    setToSuggestions([]);
   }, []);
 
   // Extract common view elements for reuse
@@ -70,6 +208,253 @@ const Bus = () => {
       <Ionicons name="locate" size={24} color="#22c55e" />
     </TouchableOpacity>
   ), []);
+
+  // Update the Modal content to include suggestions with loading state
+  const modalContent = useMemo(() => (
+    <Modal
+      animationType="slide"
+      transparent={false}
+      visible={true}
+      onRequestClose={closeSearchModal}
+    >
+      <LinearGradient
+        colors={['#000000', '#0f172a']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        className="flex-1"
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1"
+        >
+          <SafeAreaView className="flex-1 pt-10">
+            {/* Header Section */}
+            <View className="px-5 py-4 flex-row items-center border-b border-gray-800 mb-2">
+              <TouchableOpacity
+                onPress={closeSearchModal}
+                className="mr-4 bg-gray-800 p-2 rounded-full"
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="arrow-back" size={22} color="#22c55e" />
+              </TouchableOpacity>
+              <Text className="text-xl font-bold text-white">Plan Your Trip</Text>
+            </View>
+
+            {/* Use View instead of ScrollView to fix nesting error */}
+            <View className="flex-1 px-5">
+              {/* Error Message */}
+              {error && (
+                <View className="bg-red-900/80 p-4 rounded-xl mb-4 shadow-md">
+                  <Text className="text-white font-medium text-center">{error}</Text>
+                </View>
+              )}
+              
+              {/* Route Planning Card */}
+              <View className="bg-gray-900/80 rounded-xl shadow-xl overflow-hidden mb-6">
+                {/* Card Header */}
+                <View className="bg-gray-800/80 px-4 py-3 border-b border-gray-700">
+                  <Text className="text-white font-semibold">Enter Your Route Details</Text>
+                </View>
+                
+                {/* From Location Input */}
+                <View className="px-4 pt-4">
+                  <Text className="text-gray-400 mb-1 text-xs font-medium uppercase tracking-wider">From</Text>
+                  <View className="bg-gray-800 rounded-lg mb-2 overflow-hidden">
+                    <View className="flex-row items-center px-3 py-3">
+                      <Ionicons name="location" size={20} color="#22c55e" />
+                      {inputState.fromEditable ? (
+                        <TextInput
+                          className="ml-3 flex-1 text-white text-base"
+                          placeholder="Starting point..."
+                          placeholderTextColor="gray"
+                          value={formState.fromLocation}
+                          onChangeText={handleFromChange}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                        />
+                      ) : (
+                        <RNScrollView 
+                          horizontal 
+                          showsHorizontalScrollIndicator={false}
+                          className="ml-3 flex-1"
+                        >
+                          <Text className="text-white text-base py-1">
+                            {formState.fromLocation}
+                          </Text>
+                        </RNScrollView>
+                      )}
+                      {formState.fromLocation.length > 0 && (
+                        <TouchableOpacity 
+                          onPress={clearFromLocation}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Ionicons name="close-circle" size={18} color="gray" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                </View>
+                
+                {/* Suggestions container for From Location - outside of any ScrollView */}
+                {fromSuggestions.length > 0 && (
+                  <View className="px-4">
+                    <View className="bg-gray-800/80 rounded-lg mb-4 overflow-hidden shadow-inner">
+                      {fromSuggestions.map((item, index) => (
+                        <TouchableOpacity 
+                          key={`from-${index}`}
+                          onPress={() => selectFromSuggestion(item)}
+                          className="px-4 py-3 border-t border-gray-700 flex-row items-center"
+                        >
+                          <Ionicons name="bus-outline" size={16} color="#22c55e" />
+                          <Text className="text-white ml-2 flex-1">{item}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Route Connector - now with a working swap button */}
+                <View className="px-4 flex-row items-center py-2">
+                  <View className="w-0.5 h-6 bg-gray-700 ml-2.5" />
+                  <TouchableOpacity 
+                    className="flex-1 items-center" 
+                    onPress={handleSwapLocations}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <View className="bg-gray-800 p-2 rounded-full">
+                      <Ionicons name="swap-vertical" size={20} color="#22c55e" />
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                {/* To Location Input */}
+                <View className="px-4 pb-4">
+                  <Text className="text-gray-400 mb-1 text-xs font-medium uppercase tracking-wider">To</Text>
+                  <View className="bg-gray-800 rounded-lg mb-2 overflow-hidden">
+                    <View className="flex-row items-center px-3 py-3">
+                      <Ionicons name="navigate" size={20} color="#22c55e" />
+                      {inputState.toEditable ? (
+                        <TextInput
+                          className="ml-3 flex-1 text-white text-base"
+                          placeholder="Destination..."
+                          placeholderTextColor="gray"
+                          value={formState.toLocation}
+                          onChangeText={handleToChange}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                        />
+                      ) : (
+                        <RNScrollView 
+                          horizontal 
+                          showsHorizontalScrollIndicator={false}
+                          className="ml-3 flex-1"
+                        >
+                          <Text className="text-white text-base py-1">
+                            {formState.toLocation}
+                          </Text>
+                        </RNScrollView>
+                      )}
+                      {formState.toLocation.length > 0 && (
+                        <TouchableOpacity 
+                          onPress={clearToLocation}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Ionicons name="close-circle" size={18} color="gray" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                </View>
+                
+                {/* Suggestions container for To Location - outside of any ScrollView */}
+                {toSuggestions.length > 0 && (
+                  <View className="px-4">
+                    <View className="bg-gray-800/80 rounded-lg mb-4 overflow-hidden shadow-inner">
+                      {toSuggestions.map((item, index) => (
+                        <TouchableOpacity 
+                          key={`to-${index}`}
+                          onPress={() => selectToSuggestion(item)}
+                          className="px-4 py-3 border-t border-gray-700 flex-row items-center"
+                        >
+                          <Ionicons name="bus-outline" size={16} color="#22c55e" />
+                          <Text className="text-white ml-2 flex-1">{item}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* Action Button */}
+              <TouchableOpacity
+                className={`py-4 rounded-xl mb-6 shadow-lg overflow-hidden ${
+                  !formState.fromLocation || !formState.toLocation || loading ? "bg-gray-700" : "bg-green-600"
+                }`}
+                onPress={handleConfirmRoute}
+                disabled={!formState.fromLocation || !formState.toLocation || loading}
+              >
+                {loading ? (
+                  <View className="flex-row justify-center items-center">
+                    <ActivityIndicator size="small" color="#ffffff" />
+                    <Text className="text-white font-bold ml-2">Calculating...</Text>
+                  </View>
+                ) : (
+                  <Text className="text-white font-bold text-center text-base">
+                    Find My Route
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Info Card */}
+              <View className="bg-gray-900/80 rounded-xl p-4 mb-6">
+                <View className="flex-row items-center mb-3">
+                  <Ionicons name="information-circle" size={22} color="#22c55e" />
+                  <Text className="text-white font-medium ml-2">About Bus Routes</Text>
+                </View>
+                <Text className="text-gray-400 text-sm">
+                  We provide direct bus routes between specified locations in Bangalore. 
+                  Our suggestions are based on BMTC schedules and real-time data.
+                </Text>
+              </View>
+              
+              {/* Help and Tips */}
+              <View className="bg-gray-900/80 rounded-xl p-4 mb-10">
+                <Text className="text-white font-medium mb-3">Quick Tips</Text>
+                <View className="flex-row items-start mb-2">
+                  <Ionicons name="checkmark-circle" size={16} color="#22c55e" className="mt-0.5" />
+                  <Text className="text-gray-400 text-sm ml-2 flex-1">Enter major bus stops for better results</Text>
+                </View>
+                <View className="flex-row items-start mb-2">
+                  <Ionicons name="checkmark-circle" size={16} color="#22c55e" className="mt-0.5" />
+                  <Text className="text-gray-400 text-sm ml-2 flex-1">Select from suggested locations for accuracy</Text>
+                </View>
+                <View className="flex-row items-start">
+                  <Ionicons name="checkmark-circle" size={16} color="#22c55e" className="mt-0.5" />
+                  <Text className="text-gray-400 text-sm ml-2 flex-1">Try nearby stops if no direct routes are found</Text>
+                </View>
+              </View>
+            </View>
+          </SafeAreaView>
+        </KeyboardAvoidingView>
+      </LinearGradient>
+    </Modal>
+  ), [
+    formState, 
+    fromSuggestions, 
+    toSuggestions, 
+    handleFromChange, 
+    handleToChange, 
+    selectFromSuggestion, 
+    selectToSuggestion,
+    handleConfirmRoute,
+    closeSearchModal,
+    loading,
+    error,
+    handleSwapLocations,
+    inputState,
+    clearFromLocation,
+    clearToLocation
+  ]);
 
   // If route is confirmed, show the route view
   if (routeConfirmed) {
@@ -89,17 +474,17 @@ const Bus = () => {
             
             <View className="mb-2">
               <Text className="text-gray-400">From</Text>
-              <Text className="text-white">{formState.fromLocation}</Text>
+              <Text className="text-white">{truncateText(formState.fromLocation, 40)}</Text>
             </View>
             
             <View>
               <Text className="text-gray-400">To</Text>
-              <Text className="text-white">{formState.toLocation}</Text>
+              <Text className="text-white">{truncateText(formState.toLocation, 40)}</Text>
             </View>
             
             <View className="flex-row justify-between mt-3 pt-3 border-t border-gray-800">
-              <Text className="text-green-500">Est. Distance: 5.2km</Text>
-              <Text className="text-green-500">Est. Time: 30 mins</Text>
+              <Text className="text-green-500">Est. Distance: {distance}</Text>
+              <Text className="text-green-500">Est. Time: {duration}</Text>
             </View>
           </View>
           
@@ -124,76 +509,7 @@ const Bus = () => {
           </View>
         </View>
         
-        {/* Modal placed at the end of the component */}
-        {searchModalVisible && (
-          <Modal
-            animationType="slide"
-            transparent={false}
-            visible={true}
-            onRequestClose={closeSearchModal}
-          >
-            <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              className="flex-1"
-            >
-              <SafeAreaView className="flex-1 bg-black pt-10">
-                <View className="px-4 py-3 flex-row items-center border-b border-gray-800">
-                  <TouchableOpacity
-                    onPress={closeSearchModal}
-                    className="mr-4"
-                  >
-                    <Ionicons name="arrow-back" size={24} color="#22c55e" />
-                  </TouchableOpacity>
-                  <Text className="text-xl font-bold text-white">Plan Your Route</Text>
-                </View>
-
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                  <View className="p-4 space-y-4">
-                    <View className="bg-gray-900 border border-gray-800 rounded-lg p-2">
-                      <View className="flex-row items-center px-3 py-2">
-                        <Ionicons name="location" size={20} color="#22c55e" />
-                        <TextInput
-                          className="ml-2 flex-1 text-white"
-                          placeholder="From location"
-                          placeholderTextColor="gray"
-                          value={formState.fromLocation}
-                          onChangeText={handleFromChange}
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                        />
-                      </View>
-                    </View>
-
-                    <View className="bg-gray-900 border border-gray-800 rounded-lg p-2">
-                      <View className="flex-row items-center px-3 py-2">
-                        <Ionicons name="navigate" size={20} color="#22c55e" />
-                        <TextInput
-                          className="ml-2 flex-1 text-white"
-                          placeholder="To location"
-                          placeholderTextColor="gray"
-                          value={formState.toLocation}
-                          onChangeText={handleToChange}
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                        />
-                      </View>
-                    </View>
-
-                    <TouchableOpacity
-                      className={`p-3 rounded-lg mt-4 ${
-                        !formState.fromLocation || !formState.toLocation ? "bg-gray-600" : "bg-green-600"
-                      }`}
-                      onPress={handleConfirmRoute}
-                      disabled={!formState.fromLocation || !formState.toLocation}
-                    >
-                      <Text className="text-white font-bold text-center">Confirm Route</Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableWithoutFeedback>
-              </SafeAreaView>
-            </KeyboardAvoidingView>
-          </Modal>
-        )}
+        {searchModalVisible && modalContent}
       </View>
     );
   }
@@ -239,76 +555,7 @@ const Bus = () => {
         </View>
       </View>
       
-      {/* Modal placed at the end of the component */}
-      {searchModalVisible && (
-        <Modal
-          animationType="slide"
-          transparent={false}
-          visible={true}
-          onRequestClose={closeSearchModal}
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            className="flex-1"
-          >
-            <SafeAreaView className="flex-1 bg-black pt-10">
-              <View className="px-4 py-3 flex-row items-center border-b border-gray-800">
-                <TouchableOpacity
-                  onPress={closeSearchModal}
-                  className="mr-4"
-                >
-                  <Ionicons name="arrow-back" size={24} color="#22c55e" />
-                </TouchableOpacity>
-                <Text className="text-xl font-bold text-white">Plan Your Route</Text>
-              </View>
-
-              <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <View className="p-4 space-y-4">
-                  <View className="bg-gray-900 border border-gray-800 rounded-lg p-2">
-                    <View className="flex-row items-center px-3 py-2">
-                      <Ionicons name="location" size={20} color="#22c55e" />
-                      <TextInput
-                        className="ml-2 flex-1 text-white"
-                        placeholder="From location"
-                        placeholderTextColor="gray"
-                        value={formState.fromLocation}
-                        onChangeText={handleFromChange}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                      />
-                    </View>
-                  </View>
-
-                  <View className="bg-gray-900 border border-gray-800 rounded-lg p-2">
-                    <View className="flex-row items-center px-3 py-2">
-                      <Ionicons name="navigate" size={20} color="#22c55e" />
-                      <TextInput
-                        className="ml-2 flex-1 text-white"
-                        placeholder="To location"
-                        placeholderTextColor="gray"
-                        value={formState.toLocation}
-                        onChangeText={handleToChange}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                      />
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    className={`p-3 rounded-lg mt-4 ${
-                      !formState.fromLocation || !formState.toLocation ? "bg-gray-600" : "bg-green-600"
-                    }`}
-                    onPress={handleConfirmRoute}
-                    disabled={!formState.fromLocation || !formState.toLocation}
-                  >
-                    <Text className="text-white font-bold text-center">Confirm Route</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableWithoutFeedback>
-            </SafeAreaView>
-          </KeyboardAvoidingView>
-        </Modal>
-      )}
+      {searchModalVisible && modalContent}
     </View>
   );
 };
