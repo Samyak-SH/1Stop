@@ -20,7 +20,6 @@ export default function TabLayout() {
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
           ios: {
-            // Use a transparent background on iOS to show the blur effect
             position: 'absolute',
             backgroundColor: 'transparent',
           },
@@ -45,16 +44,15 @@ export default function TabLayout() {
           ),
         }}
       />
-        <Tabs.Screen
-          name="redeem"
-          options={{
-            title: 'Redeem',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="gift-outline" size={size} color={color} />
-            ),
-          }}
-        />
-      
+      <Tabs.Screen
+        name="redeem"
+        options={{
+          title: 'Redeem',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="gift-outline" size={size} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="ev"
         options={{
@@ -72,8 +70,16 @@ export default function TabLayout() {
             <Ionicons name="business-outline" size={size} color={color} />
           ),
         }}
-      /> 
-     
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

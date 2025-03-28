@@ -1,6 +1,8 @@
 require("dotenv").config({ path: './.env' });
 const {app, startServer, cors, express} = require("./utils/util.js");
 
+const bodyParser = require('body-parser');
+
 const { calcMetroFare } = require("./googleFucntions");
 const { submitReward } = require("./controllers/rewardController");
 const { busController } = require("./controllers/busController");
@@ -9,6 +11,11 @@ const { busController } = require("./controllers/busController");
 app.use(cors({
     origin : '*',
     methods: ['GET', 'POST'],
+}));
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ 
+    limit: '10mb', 
+    extended: true 
 }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
