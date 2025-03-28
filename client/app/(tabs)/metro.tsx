@@ -135,7 +135,7 @@ const Metro = () => {
 
       const data = response.data;
       console.log(data);
-      
+
       setFare(data.fare);
       setDistance(data.distance);
       setDuration(data.duration);
@@ -186,11 +186,11 @@ const Metro = () => {
   };
 
   // Trigger fare calculation when stations are selected
-  useEffect(() => {
-    if (fromStationObj && toStationObj) {
-      fetchFareFromServer();
-    }
-  }, [fromStationObj, toStationObj]);
+  // useEffect(() => {
+  //   if (fromStationObj && toStationObj) {
+  //     fetchFareFromServer();
+  //   }
+  // }, [fromStationObj, toStationObj]);
 
   // Filter stations based on input
   useEffect(() => {
@@ -261,6 +261,14 @@ const Metro = () => {
   const handleOutsidePress = (): void => {
     setShowFromSuggestions(false);
     setShowToSuggestions(false);
+  };
+
+  const handleBookTicketPress = async () => {
+    if (fromStationObj && toStationObj && numPeople) {
+      // Fetch fare before showing payment modal
+      await fetchFareFromServer();
+      setShowPayment(true);
+    }
   };
 
   // Calculate fare for display (now correctly multiplying by passenger count)
@@ -488,15 +496,13 @@ const Metro = () => {
 
           {/* Booking History Toggle */}
           <TouchableOpacity
-            className='flex-row items-center justify-between p-4 bg-gray-900 rounded-lg mb-2 shadow-md'
-            onPress={() => setShowHistory(!showHistory)}
-          >
-            <View className='flex-row items-center'>
-              <MaterialCommunityIcons name="history" size={22} color="#64748b" style={{ marginRight: 10 }} />
-              <Text className='text-white font-bold'>Booking History</Text>
-            </View>
-            <Ionicons name={showHistory ? "chevron-up" : "chevron-down"} size={22} color="#64748b" />
-          </TouchableOpacity>
+          className={`p-4 rounded-lg mb-6 shadow-md flex-row justify-center items-center ${fromStationObj && toStationObj ? 'bg-green-600' : 'bg-gray-600'}`}
+          onPress={handleBookTicketPress}
+          disabled={!fromStationObj || !toStationObj}
+        >
+          <FontAwesome5 name="ticket-alt" size={16} color="white" style={{ marginRight: 8 }} />
+          <Text className='text-white text-center font-bold text-lg'>Book Tickets</Text>
+        </TouchableOpacity>
 
           {/* Booking History Section */}
           {showHistory && (
