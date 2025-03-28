@@ -65,7 +65,7 @@ const Metro = () => {
   const fetchBookingHistory = async (): Promise<void> => {
     setLoadingHistory(true);
     try {
-      const response = await fetch('http://192.168.1.201:8000/booking-history');
+      const response = await fetch('http://192.168.141.147:8000/booking-history');
       
       if (!response.ok) {
         throw new Error(`Server responded with status: ${response.status}`);
@@ -301,8 +301,7 @@ const Metro = () => {
     >
       <ScrollView className='flex-1 bg-black'>
         <TouchableOpacity activeOpacity={1} onPress={handleOutsidePress} className='p-4'>
-          <Text className='text-white text-2xl font-bold mb-6 text-center'>Metro Ticket Booking</Text>
-          
+          <Text className='text-white text-2xl font-bold mb-6 text-center'></Text>
           {/* Improved Journey Selector UI */}
           <View className='bg-gray-900 rounded-lg p-4 mb-6 shadow-md'>
             <View className='flex-row items-center justify-between mb-4'>
@@ -435,7 +434,7 @@ const Metro = () => {
           </View>
         
           {/* Number of People - Improved UI */}
-          <View className='bg-gray-900 rounded-lg p-4 mb-6 shadow-md'>
+          <View className='bg-gray-900 rounded-lg p-4 mb-6 shadow-md -z-10'>
             <Text className='text-white font-bold text-lg mb-3'>Passengers</Text>
             <View className='flex-row items-center justify-between'>
               <View className='flex-row items-center'>
