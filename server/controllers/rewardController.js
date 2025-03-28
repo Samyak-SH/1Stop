@@ -6,7 +6,6 @@ const os = require('os');
 const submitReward = async (req, res) => {
     let tempFilePath = null;
     try {
-
         const { billType, image } = req.body;
 
         if (!billType || !image) {
@@ -54,7 +53,7 @@ const submitReward = async (req, res) => {
         });
 
         pythonProcess.stderr.on('data', (data) => {
-            stderrData += data.toString();  
+            stderrData += data.toString();
         });
 
         pythonProcess.on('error', (error) => {
@@ -63,7 +62,6 @@ const submitReward = async (req, res) => {
         });
 
         pythonProcess.on('close', async (code) => {
-
             try {
                 if (tempFilePath) {
                     await fs.unlink(tempFilePath);
@@ -84,20 +82,25 @@ const submitReward = async (req, res) => {
                 }
                 const jsonString = jsonMatch[0];
                 const result = JSON.parse(jsonString);
-                console.log(result);
-                const { statusCode, body } = result;
 
-                if (statusCode !== 200) {
-                    console.log(`Verification failed: ${body.error || 'Unknown error'}`);
-                    return res.status(statusCode).json({ error: body.error || 'Verification failed' });
+                // Log the full result for debugging
+                console.log("Full Result:", JSON.stringify(result, null, 2));
+
+                // Based on the actual response structure
+                if (result.statusCode !== 200) {
+                    console.log(`Verification failed: ${result.body.error || 'Unknown error'}`);
+                    return res.status(result.statusCode).json({ error: result.body.error || 'Verification failed' });
                 }
 
+                // Access the deeply nested body
+                const responseBody = result.body.body;
+
                 res.status(200).json({
-                    message: body.message,
-                    points: body.points,
-                    details: body.details,
-                    within_last_three_days: body.within_last_three_days || undefined,
-                    consumption_units: body.consumption_units || undefined,
+                    message: responseBody.message,
+                    points: responseBody.points,
+                    details: responseBody.details,
+                    consumption_units: responseBody.consumption_units,
+                    total_amount: responseBody.details['Total Amount']
                 });
             } catch (error) {
                 console.error(`Error parsing Python script output: ${error.message}`);

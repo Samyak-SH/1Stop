@@ -1,4 +1,4 @@
-require("dotenv").config({ path: './.env' });
+require("dotenv").config({ path: '.env' });
 
 const { calcMetroFare } = require("./googleFucntions");
 const { submitReward } = require("./controllers/rewardController");
