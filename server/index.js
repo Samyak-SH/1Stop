@@ -1,16 +1,10 @@
 require("dotenv").config({ path: './.env' });
 
+const {app, startServer, cors, express} = require("./utils/util.js");
+
 const { calcMetroFare } = require("./googleFucntions");
 const { submitReward } = require("./controllers/rewardController");
 const { busController } = require("./controllers/busController");
-
-const express = require("express");
-const cors = require('cors');
-
-const PORT = process.env.PORT || 8000;
-const LAPTOP_IP = process.env.LAPTOP_IP_ADRESS;
-
-const app = express();
 
 //middleware
 app.use(cors());
@@ -31,6 +25,7 @@ app.get("/metrofare", calcMetroFare);
 app.post("/poll", busController)
 app.post("/submit-reward", submitReward);
 
-app.listen(PORT, `0.0.0.0`, () => {
-    console.log(`Server started on http://${LAPTOP_IP}:${PORT}\nTest on http://${LAPTOP_IP}:${PORT}/test`);
-});
+
+//start server
+startServer();
+
