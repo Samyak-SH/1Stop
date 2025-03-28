@@ -96,7 +96,8 @@ const Metro = () => {
     setLoadingHistory(true);
     try {
       console.log("Fetching booking history from server...");
-      const uid = await getUID();
+      // const uid = await getUID();
+      const uid = "67e6f810732294a7f6e6d379";
       const response = await fetch(
         "http://192.168.1.201:8000/booking-history",
         {
@@ -206,7 +207,8 @@ const Metro = () => {
         passengers: parseInt(numPeople, 10),
         fare: calculateTotalFare(),
       };
-      const uid = await getUID();
+      // const uid = await getUID();
+      const uid = "67e6f810732294a7f6e6d379";
       // CONFIRM IT..;.;.;.;.;.;.;
       /*
 
