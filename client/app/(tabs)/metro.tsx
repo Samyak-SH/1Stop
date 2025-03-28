@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react'
 import { Ionicons, FontAwesome5, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { stationData } from '@/data/metro'
 
+import { LAPTOP_IP_ADRESS } from '@env';
+
 // Define interface for station data
 interface Station {
   name: string;
@@ -65,14 +67,15 @@ const Metro = () => {
   const fetchBookingHistory = async (): Promise<void> => {
     setLoadingHistory(true);
     try {
-      const response = await fetch('http://192.168.1.201:8000/booking-history');
+      console.log("Fetching booking history from server...");
+      // const response = await fetch('http://192.168.1.201:8000/booking-history');
       
-      if (!response.ok) {
-        throw new Error(`Server responded with status: ${response.status}`);
-      }
+      // if (!response.ok) {
+      //   throw new Error(`Server responded with status: ${response.status}`);
+      // }
       
-      const data: BookingHistory[] = await response.json();
-      setBookingHistory(data);
+      // const data: BookingHistory[] = await response.json();
+      // setBookingHistory(data);
     } catch (error) {
       console.error("Error fetching booking history:", error);
       // Set empty array on error
@@ -111,6 +114,7 @@ const Metro = () => {
 
   // Calculate fare from server
   const fetchFareFromServer = async (): Promise<void> => {
+    console.log("lapotpo ip", LAPTOP_IP_ADRESS);
     if (!fromStationObj || !toStationObj) return;
     
     setIsLoading(true);
@@ -119,9 +123,14 @@ const Metro = () => {
     try {
       const originCoords = `${fromStationObj.coordinates[0]},${fromStationObj.coordinates[1]}`;
       const destCoords = `${toStationObj.coordinates[0]},${toStationObj.coordinates[1]}`;
-      const url = `http://192.168.141.110:8080/metrofare?origin=${originCoords}&destination=${destCoords}&transit_mode=rail`;
+      const url = ``;
       
-      const response = await fetch(url);
+      const response = await fetch(`http://${LAPTOP_IP_ADRESS}:8080/metrofare?origin=${originCoords}&destination=${destCoords}&transit_mode=rail`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`Server responded with status: ${response.status}`);
