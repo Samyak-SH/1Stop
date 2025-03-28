@@ -30,7 +30,6 @@ async function getUser(req, res) {
 async function updatePoints(uid, responseBody) {
   const { points } = responseBody;
   const { billType } = req.body;
-  const uid = uid;
   const redeemHistory = await User.findByIdAndUpdate(uid, {
     $inc: { points: points },
   });
