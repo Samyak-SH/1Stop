@@ -75,6 +75,7 @@ const submitReward = async (req, res) => {
           error: "Failed to execute Python script",
           details: error.message,
         });
+    });
 
         pythonProcess.on('close', async (code) => {
             try {
