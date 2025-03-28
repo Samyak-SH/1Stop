@@ -20,6 +20,10 @@ const redeemHistorySchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  amount: {
+    type: Number,
+    required: true,
+  },
 });
 
 const RedeemHistoryModel = mongoose.model("RedeemHistory", redeemHistorySchema);
