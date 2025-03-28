@@ -1,64 +1,79 @@
-const { spawn } = require('child_process');
-const path = require('path');
-const fs = require('fs').promises;
-const os = require('os');
+const { spawn } = require("child_process");
+const path = require("path");
+const fs = require("fs").promises;
+const os = require("os");
 
 const submitReward = async (req, res) => {
     let tempFilePath = null;
     try {
         const { billType, image } = req.body;
 
-        if (!billType || !image) {
-            console.log("req received, but missing billType or image");
-            console.log("billType:", billType);
-            console.log("image:", image);
-            return res.status(400).json({ error: 'billType and image are required' });
-        }
+    if (!billType || !image) {
+      console.log("req received, but missing billType or image");
+      console.log("billType:", billType);
+      console.log("image:", image);
+      return res.status(400).json({ error: "billType and image are required" });
+    }
 
-        if (!['bus', 'electricity'].includes(billType)) {
-            console.log(`Invalid billType: ${billType}`);
-            return res.status(400).json({ error: 'Invalid billType. Must be "bus" or "electricity"' });
-        }
+    if (!["bus", "electricity"].includes(billType)) {
+      console.log(`Invalid billType: ${billType}`);
+      return res
+        .status(400)
+        .json({ error: 'Invalid billType. Must be "bus" or "electricity"' });
+    }
 
-        const imageBuffer = Buffer.from(image, 'base64');
+    const imageBuffer = Buffer.from(image, "base64");
 
-        const imageData = {
-            buffer: imageBuffer,
-            mimetype: 'image/jpeg',
-            originalname: 'proof.jpg',
-        };
+    const imageData = {
+      buffer: imageBuffer,
+      mimetype: "image/jpeg",
+      originalname: "proof.jpg",
+    };
 
-        const imageBase64 = imageData.buffer.toString('base64');
+    const imageBase64 = imageData.buffer.toString("base64");
 
-        const base64Regex = /^[A-Za-z0-9+/]+={0,2}$/;
-        if (!base64Regex.test(imageBase64)) {
-            console.log("Invalid Base64 string detected");
-            return res.status(400).json({ error: 'Invalid Base64 string' });
-        }
+    const base64Regex = /^[A-Za-z0-9+/]+={0,2}$/;
+    if (!base64Regex.test(imageBase64)) {
+      console.log("Invalid Base64 string detected");
+      return res.status(400).json({ error: "Invalid Base64 string" });
+    }
 
-        const pythonScriptPath = path.join(__dirname, '..', 'python', 'invoke_lambda.py');
+    const pythonScriptPath = path.join(
+      __dirname,
+      "..",
+      "python",
+      "invoke_lambda.py"
+    );
 
-        tempFilePath = path.join(os.tmpdir(), `image_base64_${Date.now()}.txt`);
-        await fs.writeFile(tempFilePath, imageBase64, 'utf8');
+    tempFilePath = path.join(os.tmpdir(), `image_base64_${Date.now()}.txt`);
+    await fs.writeFile(tempFilePath, imageBase64, "utf8");
 
-        const pythonProcess = spawn('python', [pythonScriptPath, billType, tempFilePath], {
-            stdio: ['pipe', 'pipe', 'pipe']
-        });
+    const pythonProcess = spawn(
+      "python",
+      [pythonScriptPath, billType, tempFilePath],
+      {
+        stdio: ["pipe", "pipe", "pipe"],
+      }
+    );
 
-        let stdoutData = '';
-        let stderrData = '';
+    let stdoutData = "";
+    let stderrData = "";
 
-        pythonProcess.stdout.on('data', (data) => {
-            stdoutData += data.toString();
-        });
+    pythonProcess.stdout.on("data", (data) => {
+      stdoutData += data.toString();
+    });
 
         pythonProcess.stderr.on('data', (data) => {
             stderrData += data.toString();
         });
 
-        pythonProcess.on('error', (error) => {
-            console.error("Python process error:", error.message);
-            res.status(500).json({ error: 'Failed to execute Python script', details: error.message });
+    pythonProcess.on("error", (error) => {
+      console.error("Python process error:", error.message);
+      res
+        .status(500)
+        .json({
+          error: "Failed to execute Python script",
+          details: error.message,
         });
 
         pythonProcess.on('close', async (code) => {
@@ -70,10 +85,12 @@ const submitReward = async (req, res) => {
                 console.error("Error deleting temporary file:", error.message);
             }
 
-            if (code !== 0) {
-                console.error(`Python script error: ${stderrData}`);
-                return res.status(500).json({ error: 'Failed to process the image', details: stderrData });
-            }
+      if (code !== 0) {
+        console.error(`Python script error: ${stderrData}`);
+        return res
+          .status(500)
+          .json({ error: "Failed to process the image", details: stderrData });
+      }
 
             try {
                 const jsonMatch = stdoutData.match(/\{.*\}/s);
