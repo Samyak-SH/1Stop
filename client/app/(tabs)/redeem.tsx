@@ -331,7 +331,7 @@ const Redeem = () => {
       const imageBase64 = await base64Promise;
       const uid = await getUID();
       const serverResponse = await fetch(
-        "http://192.168.5.58:8000/submit-reward",
+        "http://192.168.5.58:3000/submit-reward",
         {
           method: "POST",
           headers: {
