@@ -34,7 +34,7 @@ app.use(express.json());
 //     next();
 // });
 
-app.get("/test", (req, res) => res.status(200).send("Server running"));
+app.get("/test", (req, res) => res.status(200).json({message : "server is running"}));
 app.get("/metrofare", calcMetroFare);
 app.get("/user", getUser);
 app.get("/booking-history", getHistory);
