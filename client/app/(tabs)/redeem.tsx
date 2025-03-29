@@ -15,6 +15,15 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { getUID } from "@/data/uidController";
 
+interface RewardCardProps {
+  title: string;
+  icon: string;
+  description: string;
+  points: number;
+  onSubmit: (proof: string, imageUri: string, billType?: string) => Promise<any>;
+  billType?: string;
+}
+
 const RewardCard = ({
   title,
   icon,
@@ -22,7 +31,7 @@ const RewardCard = ({
   points,
   onSubmit,
   billType,
-}) => {
+}: RewardCardProps) => {
   const [expanded, setExpanded] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [plateImage, setPlateImage] = useState(null);
@@ -331,7 +340,7 @@ const Redeem = () => {
       const imageBase64 = await base64Promise;
       const uid = await getUID();
       const serverResponse = await fetch(
-        "http://192.168.5.58:8000/submit-reward",
+        "http://192.168.5.58:3000/submit-reward",
         {
           method: "POST",
           headers: {
@@ -459,29 +468,14 @@ const Redeem = () => {
       />
 
       <RewardCard
-        title="Metro Ticket Reward"
-        icon="train"
-        description="Metro commute"
-        points={75}
-        onSubmit={handleSubmit}
-      />
-
-      <RewardCard
-        title="House Bill Reward"
-        icon="home"
+        title="Electricity Bill Reward"
+        icon="flash"
         description="Reduced consumption"
         points={100}
         onSubmit={handleSubmit}
         billType="electricity"
       />
 
-      <RewardCard
-        title="Recycling Reward"
-        icon="leaf"
-        description="Recycled materials"
-        points={30}
-        onSubmit={handleSubmit}
-      />
     </ScrollView>
   );
 

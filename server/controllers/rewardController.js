@@ -98,8 +98,6 @@ const submitReward = async (req, res) => {
         });
       }
 
-      console.log("Full stdout data:", stdoutData);
-
       try {
         // More robust JSON extraction
         const jsonMatch = stdoutData.match(/\{[\s\S]*\}/);
@@ -113,8 +111,6 @@ const submitReward = async (req, res) => {
         }
 
         const jsonString = jsonMatch[0];
-        console.log("Extracted JSON:", jsonString);
-
         const result = JSON.parse(jsonString);
         console.log("Parsed Result:", JSON.stringify(result, null, 2));
 
