@@ -8,7 +8,8 @@ const REDIS_EXPIRY = 15; // 15 seconds
 let changeStop = true;
 
 async function busController(req, res) {
-    const THRESHOLD = 500; // in meters
+    console.log("hit");
+    const THRESHOLD = 300; // in meters
     const { origin_lat, origin_lon, dest_lat, dest_lon, busNo } = req.body;
 
     if (!busNo) {
@@ -29,8 +30,7 @@ async function busController(req, res) {
             params: {
                 origins: `${origin_lat},${origin_lon}`,
                 destinations: `${dest_lat},${dest_lon}`,
-                mode: "transit",
-                transit_mode: 'bus',
+                mode: "driving",
                 key: GOOGLE_API_KEY
             }
         });
