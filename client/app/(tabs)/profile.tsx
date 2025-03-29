@@ -2,6 +2,7 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView, ImageBackground, 
 import React from 'react'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useNavigate } from 'react-router-native';
 
 const Profile = () => {
   // Mock user data - in a real app, this would come from auth context or API
@@ -11,12 +12,14 @@ const Profile = () => {
     points: 1250,
     joinDate: "March 2023"
   }
-
+  const navigate = useNavigate();
+  
   const handleLogout = () => {
     // Add logout logic here - this would typically clear auth state and navigate to login
     console.log("Logout pressed")
+    navigate('/login')
   }
-
+  
   return (
     <View className="flex-1 bg-black">
      
@@ -106,6 +109,7 @@ const Profile = () => {
             </TouchableOpacity>
         </View>
       </View>
+
 
         {/* Logout Button */}
         <TouchableOpacity
