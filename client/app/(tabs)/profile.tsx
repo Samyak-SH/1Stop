@@ -7,9 +7,9 @@ import { useNavigate } from 'react-router-native';
 const Profile = () => {
   // Mock user data - in a real app, this would come from auth context or API
   const userData = {
-    username: "John Doe",
-    mobileNumber: "+91 98765 43210",
-    points: 1250,
+    username: "Rudraksha Singh",
+    mobileNumber: "+91 70814 99993",
+    points: 1560,
     joinDate: "March 2023"
   }
   const navigate = useNavigate();
@@ -47,7 +47,7 @@ const Profile = () => {
                 <View className="bg-emerald-900 p-3 rounded-full mr-4 border-2 border-emerald-400">
                   {/* Use an actual avatar image in production */}
                   <Image 
-                    source={{ uri: 'https://i.pravatar.cc/100' }} 
+                    source={{ uri: 'https://www.gravatar.com/avatar/?d=identicon' }} 
                     className="w-20 h-20 rounded-full"
                   />
                 </View>

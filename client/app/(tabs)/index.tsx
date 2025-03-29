@@ -17,6 +17,7 @@ import {
   ActivityIndicator,
   Dimensions,
   ScrollView as RNScrollView,
+  Image,
 } from "react-native";
 import React, {
   useRef,
@@ -30,11 +31,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import MyMap, { MyMapRef } from "@/components/MyMap";
 
 // Google Places API key - should be stored in environment variables in production
-const GOOGLE_PLACES_API_KEY = "AIzaSyAztjOUm6z678zPUAWdsT9CpatrfQwSAy8";
+const GOOGLE_PLACES_API_KEY = "AIzaSyCjqNntoMxSjvyCgXKmxO60o-sn-9y_ClE";
 
 const Bus = () => {
   const mapRef = useRef<MyMapRef>(null);
   const [searchModalVisible, setSearchModalVisible] = useState(false);
+  // Add new state for payment modal
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [formState, setFormState] = useState({
     fromLocation: "",
     toLocation: "",
@@ -57,6 +60,8 @@ const Bus = () => {
       description: string;
     }>
   >([]);
+  // Add payment amount state - calculate based on distance
+  const [paymentAmount, setPaymentAmount] = useState("0");
 
   // Function to fetch place predictions from Google Places API
   const fetchPlacePredictions = async (input: string): Promise<string[]> => {
@@ -166,6 +171,13 @@ const Bus = () => {
           setDistance(routeResult.distance);
           setDuration(routeResult.duration);
 
+          // Calculate fare based on distance
+          const baseDistance = parseFloat(
+            routeResult.distance.replace(/[^0-9.]/g, "")
+          );
+          // Set payment amount based on distance (₹20 base + ₹5 per km)
+          setPaymentAmount((20 + baseDistance * 5).toFixed(0));
+
           // Generate some route options based on the actual route
           // In a real app, these would come from the API
           const baseDistance = parseFloat(
@@ -209,6 +221,48 @@ const Bus = () => {
       }
     }
   }, [formState]);
+
+  // Handle opening payment modal
+  const handleBookTicket = useCallback(() => {
+    setPaymentModalVisible(true);
+  }, []);
+
+  // Handle closing payment modal
+  const closePaymentModal = useCallback(() => {
+    setPaymentModalVisible(false);
+  }, []);
+
+  // Handle payment process
+  const handlePayment = useCallback((method: string) => {
+    // Show processing state
+    Alert.alert(
+      "Processing Payment",
+      `Processing your payment of ₹${paymentAmount} via ${method}...`,
+      [
+        {
+          text: "OK",
+          onPress: () => {
+            // Simulate successful payment
+            setTimeout(() => {
+              Alert.alert(
+                "Payment Successful!",
+                "Your ticket has been booked successfully.",
+                [
+                  {
+                    text: "View Ticket",
+                    onPress: () => {
+                      // Navigate to ticket view (would be implemented in a real app)
+                      closePaymentModal();
+                    },
+                  },
+                ]
+              );
+            }, 1500);
+          },
+        },
+      ]
+    );
+  }, [paymentAmount, closePaymentModal]);
 
   const handleEditRoute = useCallback(() => {
     setSearchModalVisible(true);
@@ -607,6 +661,128 @@ const Bus = () => {
     ]
   );
 
+  // Payment modal component
+  const paymentModalContent = useMemo(
+    () => (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={paymentModalVisible}
+        onRequestClose={closePaymentModal}
+      >
+        <TouchableWithoutFeedback onPress={closePaymentModal}>
+          <View className="flex-1 justify-end bg-black/50">
+            <TouchableWithoutFeedback onPress={e => e.stopPropagation()}>
+              <LinearGradient
+                colors={["#0f172a", "#000000"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                className="rounded-t-3xl p-5 h-3/4"
+              >
+                <SafeAreaView className="flex-1">
+                  <View className="flex-row justify-between items-center mb-6">
+                    <Text className="text-xl font-bold text-white">Payment</Text>
+                    <TouchableOpacity 
+                      onPress={closePaymentModal}
+                      className="bg-gray-800 p-2 rounded-full"
+                    >
+                      <Ionicons name="close" size={22} color="#22c55e" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View className="bg-gray-900/80 p-4 rounded-xl mb-5 shadow-lg">
+                    <Text className="text-white text-base mb-1">Trip Summary</Text>
+                    <View className="flex-row justify-between mb-2">
+                      <Text className="text-gray-400">From</Text>
+                      <Text className="text-white text-right flex-1 ml-4">{truncateText(formState.fromLocation, 25)}</Text>
+                    </View>
+                    <View className="flex-row justify-between mb-2">
+                      <Text className="text-gray-400">To</Text>
+                      <Text className="text-white text-right flex-1 ml-4">{truncateText(formState.toLocation, 25)}</Text>
+                    </View>
+                    <View className="flex-row justify-between pt-2 border-t border-gray-800">
+                      <Text className="text-gray-400">Distance</Text>
+                      <Text className="text-white">{distance}</Text>
+                    </View>
+                  </View>
+
+                  <View className="bg-gray-900/80 p-4 rounded-xl mb-6 shadow-lg">
+                    <View className="flex-row justify-between items-center mb-4">
+                      <Text className="text-white text-base">Fare Details</Text>
+                      <View className="bg-green-900/50 px-3 py-1 rounded-full">
+                        <Text className="text-green-500 font-medium">₹{paymentAmount}</Text>
+                      </View>
+                    </View>
+                    <View className="flex-row justify-between mb-1">
+                      <Text className="text-gray-400">Base Fare</Text>
+                      <Text className="text-white">₹20.00</Text>
+                    </View>
+                    <View className="flex-row justify-between mb-1">
+                      <Text className="text-gray-400">Distance Charge</Text>
+                      <Text className="text-white">₹{(parseFloat(paymentAmount) - 20).toFixed(2)}</Text>
+                    </View>
+                    <View className="flex-row justify-between pt-2 border-t border-gray-800">
+                      <Text className="text-gray-400">Total Amount</Text>
+                      <Text className="text-white font-bold">₹{paymentAmount}.00</Text>
+                    </View>
+                  </View>
+
+                  <Text className="text-lg font-semibold text-white mb-4">Payment Methods</Text>
+                  
+                  <TouchableOpacity 
+                    className="bg-gray-900 border border-gray-800 p-4 rounded-xl mb-3 flex-row items-center"
+                    onPress={() => handlePayment("UPI")}
+                  >
+                    <Image 
+                      source={{uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/UPI-Logo-vector.svg/1200px-UPI-Logo-vector.svg.png'}} 
+                      style={{width: 35, height: 35}} 
+                      className="rounded-md"
+                    />
+                    <View className="ml-3 flex-1">
+                      <Text className="text-white font-medium">UPI Payment</Text>
+                      <Text className="text-gray-400 text-sm">Pay using any UPI app</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#22c55e" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    className="bg-gray-900 border border-gray-800 p-4 rounded-xl mb-3 flex-row items-center"
+                    onPress={() => handlePayment("Card")}
+                  >
+                    <View className="w-9 h-9 bg-gray-800 rounded-md items-center justify-center">
+                      <Ionicons name="card-outline" size={22} color="#22c55e" />
+                    </View>
+                    <View className="ml-3 flex-1">
+                      <Text className="text-white font-medium">Credit/Debit Card</Text>
+                      <Text className="text-gray-400 text-sm">Visa, Mastercard, RuPay</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#22c55e" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    className="bg-gray-900 border border-gray-800 p-4 rounded-xl mb-3 flex-row items-center"
+                    onPress={() => handlePayment("Cash")}
+                  >
+                    <View className="w-9 h-9 bg-gray-800 rounded-md items-center justify-center">
+                      <Ionicons name="cash-outline" size={22} color="#22c55e" />
+                    </View>
+                    <View className="ml-3 flex-1">
+                      <Text className="text-white font-medium">Cash Payment</Text>
+                      <Text className="text-gray-400 text-sm">Pay when you board</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#22c55e" />
+                  </TouchableOpacity>
+
+                </SafeAreaView>
+              </LinearGradient>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    ),
+    [paymentModalVisible, closePaymentModal, formState, distance, paymentAmount, handlePayment]
+  );
+
   // If route is confirmed, show the route view
   if (routeConfirmed) {
     return (
@@ -653,25 +829,37 @@ const Bus = () => {
               Suggested Routes
             </Text>
             <ScrollView className="flex-1">
-              {[1, 2, 3].map((item) => (
+              {routeOptions.map((option, index) => (
                 <TouchableOpacity
-                  key={item}
+                  key={index}
                   className="bg-gray-900 border border-gray-800 p-3 mb-3 rounded-lg"
+                  onPress={() => selectRouteOption(option)}
                 >
                   <Text className="font-medium text-white">
-                    Route Option {item}
+                    {option.description}
                   </Text>
                   <View className="flex-row justify-between mt-1">
-                    <Text className="text-green-600">5.2km</Text>
-                    <Text className="text-green-600">30 mins</Text>
+                    <Text className="text-green-600">{option.distance}</Text>
+                    <Text className="text-green-600">{option.duration}</Text>
                   </View>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
+          
+          {/* Add Book Ticket Button */}
+          <TouchableOpacity
+            className="bg-green-600 py-4 rounded-xl my-3 shadow-lg"
+            onPress={handleBookTicket}
+          >
+            <Text className="text-white font-bold text-center text-base">
+              Book Ticket - ₹{paymentAmount}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {searchModalVisible && modalContent}
+        {paymentModalVisible && paymentModalContent}
       </View>
     );
   }

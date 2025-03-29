@@ -53,6 +53,15 @@ export default function TabLayout() {
                       }}
                     />
                     <Tabs.Screen
+                      name="trackbus"
+                      options={{
+                        title: 'Track Bus',
+                        tabBarIcon: ({ color, size }) => (
+                          <Ionicons name="location-outline" size={size} color={color} />
+                        ),
+                      }}
+                    />
+                    <Tabs.Screen
                       name="metro"
                       options={{
                         title: 'Metro',

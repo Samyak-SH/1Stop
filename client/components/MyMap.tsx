@@ -15,7 +15,7 @@ import MapView, {
 import * as Location from "expo-location";
 
 // Google Places API key - should be stored in environment variables in production
-const GOOGLE_DIRECTIONS_API_KEY = "AIzaSyAztjOUm6z678zPUAWdsT9CpatrfQwSAy8";
+const GOOGLE_DIRECTIONS_API_KEY = "AIzaSyCjqNntoMxSjvyCgXKmxO60o-sn-9y_ClE";
 
 export type MyMapRef = {
   locateMe: () => Promise<boolean>;
@@ -89,7 +89,7 @@ const MyMap = forwardRef<MyMapRef, {}>((props, ref) => {
         )}&key=${GOOGLE_DIRECTIONS_API_KEY}`
       );
       const data = await response.json();
-      // console.log(data.status, data.results);
+      console.log(data.status, data.results);
       if (data.status === "OK" && data.results && data.results.length > 0) {
         return data.results[0].geometry.location;
       }

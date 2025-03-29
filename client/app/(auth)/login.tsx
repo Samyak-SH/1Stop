@@ -17,8 +17,8 @@ import { useAuth } from '../(tabs)/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
 // Constant test credentials
-const TEST_EMAIL = 'test@example.com';
-const TEST_PASSWORD = 'password123';
+const TEST_EMAIL = 'rudraksharss@gmail.com';
+const TEST_PASSWORD = 'varanasi0542';
 
 // Mock authentication service (replace with your actual API)
 const loginUser = async (email: string, password: string) => {
