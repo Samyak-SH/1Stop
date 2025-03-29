@@ -7,10 +7,6 @@ const BookingHistorySchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    book_id: {
-      type: String,
-      required: true,
-    },
     to: {
       type: String,
       required: true,
@@ -36,4 +32,5 @@ const BookingHistoryModel = mongoose.model(
   "BookingHistory",
   BookingHistorySchema
 );
+
 module.exports = BookingHistoryModel;
