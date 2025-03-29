@@ -22,7 +22,6 @@ export default function TabLayout() {
           <Route path="/login" element={<LoginPage />} />
           {/* Or add an additional route that also points to LoginPage */}
           <Route path="/(auth)/login" element={<LoginPage />} />
-          {/* <Route path="/signup" element={<SignupPage />} /> */}
           <Route 
             path="/" 
             element={
@@ -60,35 +59,25 @@ export default function TabLayout() {
                         ),
                       }}
                     />
-                      <Tabs.Screen
-                        name="redeem"
-                        options={{
-                          title: 'Redeem',
-                          tabBarIcon: ({ color, size }) => (
-                            <Ionicons name="gift-outline" size={size} color={color} />
-                          ),
-                        }}
-                      />
-                    
                     <Tabs.Screen
-                      name="ev"
+                      name="redeem"
                       options={{
-                        title: 'EV',
+                        title: 'Redeem',
                         tabBarIcon: ({ color, size }) => (
-                          <Ionicons name="car-outline" size={size} color={color} />
+                          <Ionicons name="gift-outline" size={size} color={color} />
                         ),
                       }}
                     />
                     <Tabs.Screen
-                      name="house"
+                      name="profile"
                       options={{
-                        title: 'House',
+                        title: 'Profile',
                         tabBarIcon: ({ color, size }) => (
-                          <Ionicons name="business-outline" size={size} color={color} />
+                          <Ionicons name="person-outline" size={size} color={color} />
                         ),
                       }}
-                    /> 
-                  
+                    />
+                    
                   </Tabs>
                 {/* Your existing tab navigation */}
               </ProtectedRoute>

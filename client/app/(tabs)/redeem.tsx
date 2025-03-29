@@ -208,7 +208,48 @@ const RewardCard = ({ title, icon, description, points, onSubmit, billType }) =>
   )
 }
 
+// Gift Card component for Rewards section
+const GiftCard = ({ title, logo, description, requiredPoints, userPoints, onRedeem }) => {
+  const canRedeem = userPoints >= requiredPoints;
+  
+  return (
+    <View className="bg-gray-800 rounded-xl mb-4 overflow-hidden">
+      <View className="p-4">
+        <View className="flex-row justify-between items-center mb-3">
+          <Text className="text-white text-xl font-bold">{title}</Text>
+          <View className="bg-green-700 px-3 py-1 rounded-full">
+            <Text className="text-white font-bold">{requiredPoints} pts</Text>
+          </View>
+        </View>
+        
+        <View className="flex-row items-center">
+          <Image 
+            source={{ uri: logo }} 
+            style={{ width: 80, height: 80 }} 
+            className="rounded-lg mr-4"
+          />
+          <View className="flex-1">
+            <Text className="text-gray-300 mb-2">{description}</Text>
+            <TouchableOpacity
+              className={`py-2 px-4 rounded-lg items-center ${canRedeem ? 'bg-green-600' : 'bg-gray-600'}`}
+              disabled={!canRedeem}
+              onPress={() => onRedeem(title, requiredPoints)}
+            >
+              <Text className="text-white font-bold">
+                {canRedeem ? 'Redeem Now' : 'Not Enough Points'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+};
+
 const Redeem = () => {
+  const [activeTab, setActiveTab] = useState('redeem'); // 'redeem' or 'rewards'
+  const [userPoints, setUserPoints] = useState(250); // Mock user points
+  
   const handleSubmit = async (proof, imageUri, billType) => {
     if (!imageUri) {
       throw new Error('Image is required')
@@ -262,49 +303,156 @@ const Redeem = () => {
       throw error
     }
   }
+  
+  const handleRedeemGiftCard = (cardTitle, pointsCost) => {
+    Alert.alert(
+      "Confirm Redemption",
+      `Are you sure you want to redeem ${cardTitle} for ${pointsCost} points?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Confirm",
+          onPress: () => {
+            setUserPoints(prev => prev - pointsCost);
+            Alert.alert("Success", `You have successfully redeemed ${cardTitle}!`);
+          }
+        }
+      ]
+    );
+  };
+
+  // Tab switcher component
+  const TabSwitcher = () => (
+    <View className="flex-row bg-gray-800 rounded-full p-1 mx-4 mb-4">
+      <TouchableOpacity 
+        className={`flex-1 py-2 rounded-full ${activeTab === 'redeem' ? 'bg-green-600' : 'bg-transparent'}`}
+        onPress={() => setActiveTab('redeem')}
+      >
+        <Text className="text-white font-bold text-center">Redeem</Text>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        className={`flex-1 py-2 rounded-full ${activeTab === 'rewards' ? 'bg-green-600' : 'bg-transparent'}`}
+        onPress={() => setActiveTab('rewards')}
+      >
+        <Text className="text-white font-bold text-center">Rewards</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // Content for Rewards tab
+  const RewardsContent = () => (
+    <ScrollView className="flex-1 px-4">
+      <GiftCard
+        title="Amazon Gift Card"
+        logo="https://m.media-amazon.com/images/G/01/gc/designs/livepreview/a_generic_white_10_us_noto_email_v2016_us-main._CB627448186_.png"
+        description="Redeem for anything on Amazon. Valid for 1 year from redemption."
+        requiredPoints={200}
+        userPoints={userPoints}
+        onRedeem={handleRedeemGiftCard}
+      />
+      
+      <GiftCard
+        title="Starbucks Coffee"
+        logo="https://upload.wikimedia.org/wikipedia/en/thumb/d/d3/Starbucks_Corporation_Logo_2011.svg/800px-Starbucks_Corporation_Logo_2011.svg.png"
+        description="Get a $10 Starbucks gift card to enjoy your favorite coffee."
+        requiredPoints={150}
+        userPoints={userPoints}
+        onRedeem={handleRedeemGiftCard}
+      />
+      
+      <GiftCard
+        title="Netflix Subscription"
+        logo="https://cdn.cookielaw.org/logos/dd6b162f-1a32-456a-9cfe-897231c7763c/4345ea78-053c-46d2-b11e-09adaef973dc/Netflix_Logo_PMS.png"
+        description="One month standard Netflix subscription."
+        requiredPoints={300}
+        userPoints={userPoints}
+        onRedeem={handleRedeemGiftCard}
+      />
+      
+      <GiftCard
+        title="Uber Ride Credit"
+        logo="https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Uber_App_Icon.svg/2048px-Uber_App_Icon.svg.png"
+        description="$15 Uber ride credit to help you travel sustainably."
+        requiredPoints={180}
+        userPoints={userPoints}
+        onRedeem={handleRedeemGiftCard}
+      />
+      
+      <GiftCard
+        title="Donation to Green Cause"
+        logo="https://cdn-icons-png.flaticon.com/512/2971/2971416.png"
+        description="We'll donate to plant trees on your behalf."
+        requiredPoints={100}
+        userPoints={userPoints}
+        onRedeem={handleRedeemGiftCard}
+      />
+    </ScrollView>
+  );
+
+  // Content for the original Redeem tab
+  const RedeemContent = () => (
+    <ScrollView className="flex-1 px-4">
+      <RewardCard
+        title="Bus Ticket Reward"
+        icon="bus"
+        description="Public transport"
+        points={50}
+        onSubmit={handleSubmit}
+        billType="bus"
+      />
+
+      <RewardCard
+        title="Metro Ticket Reward"
+        icon="train"
+        description="Metro commute"
+        points={75}
+        onSubmit={handleSubmit}
+      />
+
+      <RewardCard
+        title="House Bill Reward"
+        icon="home"
+        description="Reduced consumption"
+        points={100}
+        onSubmit={handleSubmit}
+        billType="electricity"
+      />
+
+      <RewardCard
+        title="Recycling Reward"
+        icon="leaf"
+        description="Recycled materials"
+        points={30}
+        onSubmit={handleSubmit}
+      />
+    </ScrollView>
+  );
 
   return (
     <View className="flex-1 bg-black pt-12">
-      <View className="px-4 py-4">
-        <Text className="text-white text-2xl font-bold">Redeem Rewards</Text>
-        <Text className="text-gray-400 mb-4">Submit proof to claim your eco-rewards</Text>
+      {/* Points display in corner */}
+      <View className="absolute top-12 right-4 z-10 bg-green-800 px-3 py-1 rounded-full flex-row items-center">
+        <Ionicons name="star" size={16} color="#FFD700" />
+        <Text className="text-white font-bold ml-1">{userPoints} points</Text>
       </View>
-
-      <ScrollView className="flex-1 px-4">
-        <RewardCard
-          title="Bus Ticket Reward"
-          icon="bus"
-          description="Public transport"
-          points={50}
-          onSubmit={handleSubmit}
-          billType="bus"
-        />
-
-        <RewardCard
-          title="Metro Ticket Reward"
-          icon="train"
-          description="Metro commute"
-          points={75}
-          onSubmit={handleSubmit}
-        />
-
-        <RewardCard
-          title="House Bill Reward"
-          icon="home"
-          description="Reduced consumption"
-          points={100}
-          onSubmit={handleSubmit}
-          billType="electricity"
-        />
-
-        <RewardCard
-          title="Recycling Reward"
-          icon="leaf"
-          description="Recycled materials"
-          points={30}
-          onSubmit={handleSubmit}
-        />
-      </ScrollView>
+      
+      <View className="px-4 py-4">
+        <Text className="text-white text-2xl font-bold">
+          {activeTab === 'redeem' ? 'Redeem Rewards' : 'Claim Rewards'}
+        </Text>
+        <Text className="text-gray-400 mb-2">
+          {activeTab === 'redeem' 
+            ? 'Submit proof to claim your eco-rewards' 
+            : 'Use your points to get these awesome rewards'}
+        </Text>
+      </View>
+      
+      <TabSwitcher />
+      
+      {activeTab === 'redeem' ? <RedeemContent /> : <RewardsContent />}
     </View>
   )
 }
