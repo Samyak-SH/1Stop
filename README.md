@@ -21,23 +21,22 @@
 
 ## :dart: About ##
 
-1Stop is a comprehensive one-stop solution that promotes sustainable urban mobility by providing real-time public transport data, efficient metro ticket booking, and a rewards system that incentivizes eco-friendly practices. The app aims to reduce carbon emissions by encouraging the use of public transportation and motivating users to conserve resources through a point-based reward mechanism.
+**1Stop** is a comprehensive one-stop solution designed to promote sustainable practices by streamlining public transport and rewarding eco-friendly behaviors. The platform provides real-time transit information, booking services, and a rewards system to encourage users to choose greener alternatives.
 
 ## :sparkles: Features ##
 
-:heavy_check_mark: Real-time public transport schedules and crowd density updates;  
-:heavy_check_mark: Metro ticket booking system;  
-:heavy_check_mark: Reward system where users earn points by scanning bills and tickets, redeemable for vouchers supporting local businesses;
+:heavy_check_mark: **Real-Time Public Transport Data** – Access accurate bus and metro schedules along with live crowd density updates;  
+:heavy_check_mark: **Ticket Booking** – Quickly book metro tickets with an intuitive user interface;  
+:heavy_check_mark: **Rewards System** – Earn points by engaging in eco-friendly practices, which can be redeemed for vouchers;  
+:heavy_check_mark: **Support Local Businesses** – Redeem rewards with vouchers from local startups, promoting sustainable local growth.  
 
 ## :rocket: Technologies ##
 
 The following tools were used in this project:
 
-- [Expo](https://expo.io/)
-- [Node.js](https://nodejs.org/en/)
-- [React](https://pt-br.reactjs.org/)
-- [React Native](https://reactnative.dev/)
-- [TypeScript](https://www.typescriptlang.org/)
+- **Frontend:** TypeScript, JavaScript  
+- **Backend:** Node.js  
+- **Additional libraries and tools** as per project requirements  
 
 ## :white_check_mark: Requirements ##
 
@@ -47,15 +46,18 @@ Before starting :checkered_flag:, you need to have [Git](https://git-scm.com) an
 
 ```bash
 # Clone this project
-$ git clone https://github.com/ishaansaxena25/1stop
+$ git clone https://github.com/ishaansaxena25/1Stop.git
 
 # Access
-$ cd 1stop
+$ cd 1Stop
 
-# Install dependencies
-$ yarn
+# Install dependencies for client
+$ cd client
+$ npm install
+
+# Install dependencies for server
+$ cd ../server
+$ npm install
 
 # Run the project
-$ yarn start
-
-# The server will initialize on <http://localhost:3000>
+$ npm start
