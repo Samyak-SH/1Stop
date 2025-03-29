@@ -92,11 +92,7 @@ Contributions are welcome! Please follow these steps:
 
 For major changes, please open an issue first to discuss what you would like to change.
 
-## :memo: License
-Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
-
----
 
 <p align="center">
-  <a href="https://github.com/ishaansaxena25" target="_blank">Author</a>
+  <a href="https://github.com/rudrakshass" target="_blank">Author</a>
 </p>
