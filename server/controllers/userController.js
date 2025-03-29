@@ -23,13 +23,12 @@ async function getUser(req, res) {
     const userDetails = await User.findById(uid);
     res.status(200).json({ userDetails });
   } catch (error) {
-    res.status(500).json({ messafe: "ab aur nhi ho rha" });
+    res.status(500).json({ message: "ab aur nhi ho rha" });
   }
 }
 
 async function updatePoints(uid, responseBody) {
   const { points } = responseBody;
-  const { billType } = req.body;
   const redeemHistory = await User.findByIdAndUpdate(uid, {
     $inc: { points: points },
   });
