@@ -3,7 +3,7 @@ const { app, startServer, express } = require("./utils/util.js");
 const bodyParser = require("body-parser");
 const { calcMetroFare } = require("./googleFucntions");
 const { submitReward } = require("./controllers/rewardController");
-const { busController } = require("./controllers/busController");
+const { busController, updateDensity, getBusStatus} = require("./controllers/busController");
 const {
   getHistory,
   createBooking,
@@ -36,13 +36,16 @@ app.use(express.json());
 
 app.get("/test", (req, res) => res.status(200).send("Server running"));
 app.get("/metrofare", calcMetroFare);
+app.get("/user", getUser);
+app.get("/booking-history", getHistory);
+app.get("/busstatus",getBusStatus);
 
 app.post("/poll", busController);
 app.post("/submit-reward", submitReward);
 app.post("/create-booking", createBooking);
-app.get("/booking-history", getHistory);
 app.post("/user", createUser);
-app.get("/user", getUser);
+app.post("/updatedensity", updateDensity);
+
 
 //start server
 startServer();
