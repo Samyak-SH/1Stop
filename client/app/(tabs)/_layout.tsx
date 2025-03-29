@@ -10,6 +10,7 @@ import { LoginPage } from '../(auth)/login';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { SignupPage } from '../(auth)/signup';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -20,6 +21,7 @@ export default function TabLayout() {
         <Routes>
           {/* Change this route path */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
           {/* Or add an additional route that also points to LoginPage */}
           <Route path="/(auth)/login" element={<LoginPage />} />
           <Route 
