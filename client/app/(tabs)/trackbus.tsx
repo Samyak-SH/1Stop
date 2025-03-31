@@ -1,4 +1,4 @@
-import { SERVER_URL, GOOGLE_API_KEY } from "@env";
+// import { SERVER_URL, GOOGLE_API_KEY } from "@env";
 import {
   StyleSheet,
   Text,
@@ -32,6 +32,7 @@ import axios from "axios";
 
 // Google Places API key - should be stored in environment variables in production
 const GOOGLE_PLACES_API_KEY = "AIzaSyCjqNntoMxSjvyCgXKmxO60o-sn-9y_ClE";
+const SERVER_URL = "";
 
 const TrackBus = () => {
   const mapRef = useRef<MyMapRef>(null);

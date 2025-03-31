@@ -22,10 +22,12 @@ import {
 import { stationData } from "@/data/metro";
 import axios from "axios";
 
-import { SERVER_URL, GOOGLE_API_KEY } from "@env";
+// import { SERVER_URL, GOOGLE_API_KEY } from "@env";
 import { getUID } from "@/data/uidController";
 import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
 import { resolvePath } from "react-router-native";
+
+const SERVER_URL = ""
 
 // Define interface for station data
 interface Station {
