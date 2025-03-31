@@ -1,4 +1,4 @@
-import { SERVER_URL, GOOGLE_API_KEY } from "@env";
+// import { SERVER_URL, GOOGLE_API_KEY } from "@env";
 import {
   StyleSheet,
   Text,
@@ -31,7 +31,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import MyMap, { MyMapRef } from "@/components/MyMap";
 
 // Google Places API key - should be stored in environment variables in production
-const GOOGLE_PLACES_API_KEY = "AIzaSyCjqNntoMxSjvyCgXKmxO60o-sn-9y_ClE";
+const GOOGLE_PLACES_API_KEY = "//";
 
 const Bus = () => {
   const mapRef = useRef<MyMapRef>(null);
@@ -166,27 +166,23 @@ const Bus = () => {
           formState.fromLocation,
           formState.toLocation
         );
-
+      
         if (routeResult) {
           setDistance(routeResult.distance);
           setDuration(routeResult.duration);
-
+      
           // Calculate fare based on distance
           const baseDistance = parseFloat(
             routeResult.distance.replace(/[^0-9.]/g, "")
           );
+      
           // Set payment amount based on distance (₹20 base + ₹5 per km)
           setPaymentAmount((20 + baseDistance * 5).toFixed(0));
-
+      
           // Generate some route options based on the actual route
           // In a real app, these would come from the API
-          const baseDistance = parseFloat(
-            routeResult.distance.replace(/[^0-9.]/g, "")
-          );
-          const baseDuration = parseInt(
-            routeResult.duration.replace(/[^0-9]/g, "")
-          );
-
+          const baseDuration = parseInt(routeResult.duration.replace(/[^0-9]/g, ""));
+      
           setRouteOptions([
             {
               distance: routeResult.distance,
@@ -204,13 +200,11 @@ const Bus = () => {
               description: "Scenic Route",
             },
           ]);
-
+      
           setRouteConfirmed(true);
           setSearchModalVisible(false);
         } else {
-          setError(
-            "Could not calculate route. Please try different locations."
-          );
+          setError("Could not calculate route. Please try different locations.");
         }
       } catch (error) {
         console.error("Error confirming route:", error);
@@ -219,6 +213,7 @@ const Bus = () => {
         setLoading(false);
         Keyboard.dismiss();
       }
+      
     }
   }, [formState]);
 

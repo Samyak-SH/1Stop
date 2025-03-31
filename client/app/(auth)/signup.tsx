@@ -182,3 +182,5 @@ export const SignupPage: React.FC = () => {
     </SafeAreaView>
   );
 };
+
+export default SignupPage

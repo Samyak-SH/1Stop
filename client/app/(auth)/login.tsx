@@ -150,3 +150,5 @@ export const LoginPage: React.FC = () => {
     </SafeAreaView>
   );
 };
+
+export default LoginPage;
