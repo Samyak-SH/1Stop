@@ -1,729 +1,505 @@
-import { SERVER_URL, GOOGLE_API_KEY } from "@env";
 import {
   StyleSheet,
   Text,
   View,
-  TextInput,
   ScrollView,
   TouchableOpacity,
-  Modal,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
-  FlatList,
-  Alert,
+  Image,
   ActivityIndicator,
-  Dimensions,
-  ScrollView as RNScrollView,
+  Alert,
+  Switch,
 } from "react-native";
-import React, {
-  useRef,
-  useState,
-  useCallback,
-  useMemo,
-  useEffect,
-} from "react";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import MyMap, { MyMapRef } from "@/components/MyMap";
+import React, { useState, useEffect } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
+import { getUID } from "@/data/uidController";
 
-// Google Places API key - should be stored in environment variables in production
-const GOOGLE_PLACES_API_KEY = "AIzaSyCjqNntoMxSjvyCgXKmxO60o-sn-9y_ClE";
+interface RewardCardProps {
+  title: string;
+  icon: string;
+  description: string;
+  points: number;
+  onSubmit: (proof: string, imageUri: string, billType?: string) => Promise<any>;
+  billType?: string;
+}
 
-const TrackBus = () => {
-  const mapRef = useRef<MyMapRef>(null);
-  const [searchModalVisible, setSearchModalVisible] = useState(false);
-  const [formState, setFormState] = useState({
-    fromLocation: "",
-    toLocation: "",
-  });
-  const [inputState, setInputState] = useState({
-    fromEditable: true,
-    toEditable: true,
-  });
-  const [routeConfirmed, setRouteConfirmed] = useState(false);
-  const [fromSuggestions, setFromSuggestions] = useState<string[]>([]);
-  const [toSuggestions, setToSuggestions] = useState<string[]>([]);
-  const [distance, setDistance] = useState("");
-  const [duration, setDuration] = useState("");
+const RewardCard = ({
+  title,
+  icon,
+  description,
+  points,
+  onSubmit,
+  billType,
+}: RewardCardProps) => {
+  const [expanded, setExpanded] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [plateImage, setPlateImage] = useState(null);
+  const [submissionResult, setSubmissionResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [routeOptions, setRouteOptions] = useState<
-    Array<{
-      distance: string;
-      duration: string;
-      description: string;
-    }>
-  >([]);
+  const [allowCrop, setAllowCrop] = useState(false);
 
-  // Function to fetch place predictions from Google Places API
-  const fetchPlacePredictions = async (input: string): Promise<string[]> => {
-    if (input.length <= 2) return [];
-
-    try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${input}&types=transit_station|bus_station&components=country:in&key=${GOOGLE_PLACES_API_KEY}`
-      );
-      console.log(response);
-      const result = await response.json();
-      console.log(result);
-      if (result.status === "OK") {
-        return result.predictions.map((pred: any) => pred.description);
-      } else {
-        return [];
+  useEffect(() => {
+    const requestPermissions = async () => {
+      const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
+      const galleryStatus =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (
+        cameraStatus.status !== "granted" ||
+        galleryStatus.status !== "granted"
+      ) {
+        alert(
+          "Permissions not granted. Please enable camera and gallery access in your device settings."
+        );
       }
-    } catch (error) {
-      console.error("Error fetching place predictions:", error);
-      return [];
-    }
-  };
-
-  // Handle from location input with API suggestions
-  const handleFromChange = useCallback(async (text: string) => {
-    setFormState((prev) => ({ ...prev, fromLocation: text }));
-
-    try {
-      if (text.length > 2) {
-        setLoading(true);
-        const suggestions = await fetchPlacePredictions(text);
-        setFromSuggestions(suggestions.slice(0, 5));
-      } else {
-        setFromSuggestions([]);
-      }
-    } catch (error) {
-      console.error("Error in handleFromChange:", error);
-    } finally {
-      setLoading(false);
-    }
+    };
+    requestPermissions();
   }, []);
 
-  // Handle to location input with API suggestions
-  const handleToChange = useCallback(async (text: string) => {
-    setFormState((prev) => ({ ...prev, toLocation: text }));
-
-    try {
-      if (text.length > 2) {
-        setLoading(true);
-        const suggestions = await fetchPlacePredictions(text);
-        setToSuggestions(suggestions.slice(0, 5));
-      } else {
-        setToSuggestions([]);
-      }
-    } catch (error) {
-      console.error("Error in handleToChange:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Select suggestion handlers - update to make inputs read-only after selection
-  const selectFromSuggestion = useCallback((suggestion: string) => {
-    setFormState((prev) => ({ ...prev, fromLocation: suggestion }));
-    setFromSuggestions([]);
-    setInputState((prev) => ({ ...prev, fromEditable: false }));
-    Keyboard.dismiss();
-  }, []);
-
-  const selectToSuggestion = useCallback((suggestion: string) => {
-    setFormState((prev) => ({ ...prev, toLocation: suggestion }));
-    setToSuggestions([]);
-    setInputState((prev) => ({ ...prev, toEditable: false }));
-    Keyboard.dismiss();
-  }, []);
-
-  // Clear handlers for resetting inputs to editable state
-  const clearFromLocation = useCallback(() => {
-    setFormState((prev) => ({ ...prev, fromLocation: "" }));
-    setInputState((prev) => ({ ...prev, fromEditable: true }));
-  }, []);
-
-  const clearToLocation = useCallback(() => {
-    setFormState((prev) => ({ ...prev, toLocation: "" }));
-    setInputState((prev) => ({ ...prev, toEditable: true }));
-  }, []);
-
-  const handleConfirmRoute = useCallback(async () => {
-    if (formState.fromLocation && formState.toLocation) {
-      // Check if origin and destination are the same
-      if (formState.fromLocation === formState.toLocation) {
-        setError("Origin and destination cannot be the same");
+  const pickImageFromCamera = async () => {
+    const cameraStatus = await ImagePicker.getCameraPermissionsAsync();
+    if (cameraStatus.status !== "granted") {
+      const newStatus = await ImagePicker.requestCameraPermissionsAsync();
+      if (newStatus.status !== "granted") {
+        alert(
+          "Camera permission denied. Please enable it in your device settings."
+        );
         return;
       }
-
-      setError(null);
-      setLoading(true);
-
-      try {
-        // Use the MyMap component's findRoute function to get actual route info
-        const routeResult = await mapRef.current?.findRoute(
-          formState.fromLocation,
-          formState.toLocation
-        );
-
-        if (routeResult) {
-          setDistance(routeResult.distance);
-          setDuration(routeResult.duration);
-
-          // Generate some route options based on the actual route
-          // In a real app, these would come from the API
-          const baseDistance = parseFloat(
-            routeResult.distance.replace(/[^0-9.]/g, "")
-          );
-          const baseDuration = parseInt(
-            routeResult.duration.replace(/[^0-9]/g, "")
-          );
-
-          setRouteOptions([
-            {
-              distance: routeResult.distance,
-              duration: routeResult.duration,
-              description: "Direct Route",
-            },
-            {
-              distance: `${(baseDistance * 1.1).toFixed(1)}km`,
-              duration: `${Math.round(baseDuration * 0.9)} mins`,
-              description: "Faster Route (Less Stops)",
-            },
-            {
-              distance: `${(baseDistance * 0.95).toFixed(1)}km`,
-              duration: `${Math.round(baseDuration * 1.15)} mins`,
-              description: "Scenic Route",
-            },
-          ]);
-
-          setRouteConfirmed(true);
-          setSearchModalVisible(false);
-        } else {
-          setError(
-            "Could not calculate route. Please try different locations."
-          );
-        }
-      } catch (error) {
-        console.error("Error confirming route:", error);
-        setError("Failed to calculate route. Please try again.");
-      } finally {
-        setLoading(false);
-        Keyboard.dismiss();
-      }
     }
-  }, [formState]);
 
-  const handleEditRoute = useCallback(() => {
-    setSearchModalVisible(true);
-  }, []);
+    try {
+      let result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: allowCrop,
+        aspect: [2, 4],
+        quality: 1,
+      });
 
-  const openSearchModal = useCallback(() => {
-    setSearchModalVisible(true);
-  }, []);
-
-  const closeSearchModal = useCallback(() => {
-    Keyboard.dismiss();
-    setSearchModalVisible(false);
-  }, []);
-
-  // Helper function to truncate long text with ellipsis
-  const truncateText = (text: string, maxLength: number = 30): string => {
-    if (!text) return "";
-    if (text.length <= maxLength) return text;
-
-    // Find the last space before maxLength to avoid cutting words
-    const lastSpace = text.substring(0, maxLength).lastIndexOf(" ");
-    return text.substring(0, lastSpace > 0 ? lastSpace : maxLength) + "...";
+      if (!result.canceled) {
+        setPlateImage(result.assets[0].uri);
+      } else {
+        console.log("Camera action canceled");
+      }
+    } catch (error) {
+      console.error("Error opening camera:", error);
+      alert("Failed to open camera: " + error.message);
+    }
   };
 
-  // Swap origin and destination locations
-  const handleSwapLocations = useCallback(() => {
-    setFormState((prev) => ({
-      fromLocation: prev.toLocation,
-      toLocation: prev.fromLocation,
-    }));
-    // Keep the input state (editable or not) when swapping
-    setInputState((prev) => ({
-      fromEditable: prev.toEditable,
-      toEditable: prev.fromEditable,
-    }));
-    setFromSuggestions([]);
-    setToSuggestions([]);
-  }, []);
+  const pickImageFromGallery = async () => {
+    const galleryStatus = await ImagePicker.getMediaLibraryPermissionsAsync();
+    if (galleryStatus.status !== "granted") {
+      const newStatus = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (newStatus.status !== "granted") {
+        alert(
+          "Gallery permission denied. Please enable it in your device settings."
+        );
+        return;
+      }
+    }
 
-  // Select a specific route option
-  const selectRouteOption = useCallback((option: any) => {
-    setDistance(option.distance);
-    setDuration(option.duration);
-    // In a real app, you would call findRoute again with specific parameters for this route
-  }, []);
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: allowCrop,
+        aspect: [2, 4],
+        quality: 1,
+      });
 
-  // Extract common view elements for reuse
-  const mapSection = useMemo(
-    () => (
-      <View className="w-full h-1/2 bg-gray-900 justify-center items-center">
-        <MyMap ref={mapRef} />
+      if (!result.canceled) {
+        setPlateImage(result.assets[0].uri);
+      } else {
+        console.log("Gallery action canceled");
+      }
+    } catch (error) {
+      console.error("Error opening gallery:", error);
+      alert("Failed to open gallery: " + error.message);
+    }
+  };
+
+  const pickImage = () => {
+    Alert.alert(
+      "Select Image Source",
+      "Choose where to get the image from:",
+      [
+        {
+          text: "Take Photo",
+          onPress: () => pickImageFromCamera(),
+        },
+        {
+          text: "Choose from Gallery",
+          onPress: () => pickImageFromGallery(),
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (!plateImage) {
+      alert("Please upload a photo of the proof");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await onSubmit("", plateImage, billType);
+      setSubmitted(true);
+      setPlateImage(null);
+      setSubmissionResult("Successfully Submitted!");
+      return result;
+    } catch (error) {
+      setSubmissionResult(
+        "Submission Failed: " + (error.message || "Unknown error")
+      );
+      setSubmitted(true);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      className="w-full bg-gray-800 rounded-xl mb-4 overflow-hidden"
+      onPress={() => setExpanded(!expanded)}
+      activeOpacity={0.8}
+    >
+      <View className="flex-row justify-between items-center p-4">
+        <View className="flex-row items-center">
+          <View className="bg-green-700 p-2 rounded-full mr-3">
+            <Ionicons name={icon} size={24} color="white" />
+          </View>
+          <View>
+            <Text className="text-white text-lg font-bold">{title}</Text>
+            <Text className="text-gray-400">{description}</Text>
+          </View>
+        </View>
+        <View className="flex-row items-center">
+          <Text className="text-green-500 font-bold mr-2">{points} pts</Text>
+          <Ionicons
+            name={expanded ? "chevron-up" : "chevron-down"}
+            size={20}
+            color="white"
+          />
+        </View>
       </View>
-    ),
-    []
-  );
 
-  const locateButton = useMemo(
-    () => (
-      <TouchableOpacity
-        className="absolute right-4 bottom-[51%] bg-black p-3 rounded-full shadow-lg"
-        onPress={() => mapRef.current?.locateMe()}
-      >
-        <Ionicons name="locate" size={24} color="#22c55e" />
-      </TouchableOpacity>
-    ),
-    []
-  );
-
-  // Update the Modal content to include suggestions with loading state
-  const modalContent = useMemo(
-    () => (
-      <Modal
-        animationType="slide"
-        transparent={false}
-        visible={true}
-        onRequestClose={closeSearchModal}
-      >
-        <LinearGradient
-          colors={["#000000", "#0f172a"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          className="flex-1"
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            className="flex-1"
-          >
-            <SafeAreaView className="flex-1 pt-10">
-              {/* Header Section */}
-              <View className="px-5 py-4 flex-row items-center border-b border-gray-800 mb-2">
-                <TouchableOpacity
-                  onPress={closeSearchModal}
-                  className="mr-4 bg-gray-800 p-2 rounded-full"
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="arrow-back" size={22} color="#22c55e" />
-                </TouchableOpacity>
-                <Text className="text-xl font-bold text-white">
-                  Plan Your Trip
-                </Text>
+      {expanded && (
+        <View className="bg-gray-700 p-4">
+          {submitted ? (
+            <View className="items-center py-4">
+              <Ionicons
+                name={
+                  submissionResult.includes("Failed")
+                    ? "close-circle"
+                    : "checkmark-circle"
+                }
+                size={48}
+                color={
+                  submissionResult.includes("Failed") ? "#ef4444" : "#22c55e"
+                }
+              />
+              <Text className="text-white text-lg mt-2">
+                {submissionResult}
+              </Text>
+            </View>
+          ) : loading ? (
+            <View className="items-center py-4">
+              <ActivityIndicator size="large" color="#22c55e" />
+              <Text className="text-white text-lg mt-2">Verifying...</Text>
+            </View>
+          ) : (
+            <>
+              <Text className="text-white mb-2">
+                Upload proof to claim reward:
+              </Text>
+              <View className="flex-row items-center mb-2">
+                <Text className="text-white mr-2">Enable cropping</Text>
+                <Switch
+                  value={allowCrop}
+                  onValueChange={setAllowCrop}
+                  trackColor={{ false: "#767577", true: "#22c55e" }}
+                  thumbColor={allowCrop ? "#f4f3f4" : "#f4f3f4"}
+                />
               </View>
-
-              {/* Use View instead of ScrollView to fix nesting error */}
-              <View className="flex-1 px-5">
-                {/* Error Message */}
-                {error && (
-                  <View className="bg-red-900/80 p-4 rounded-xl mb-4 shadow-md">
-                    <Text className="text-white font-medium text-center">
-                      {error}
+              <TouchableOpacity
+                className="bg-gray-600 rounded-lg mb-3 flex-row items-center justify-center"
+                onPress={pickImage}
+                style={{ height: 200 }}
+              >
+                {plateImage ? (
+                  <Image
+                    source={{ uri: plateImage }}
+                    style={{ width: "100%", height: 200, resizeMode: "cover" }}
+                    className="rounded-lg"
+                  />
+                ) : (
+                  <View className="items-center">
+                    <Ionicons name="camera" size={24} color="white" />
+                    <Text className="text-white mt-2">
+                      Take Photo/From Gallery
                     </Text>
                   </View>
                 )}
-
-                {/* Route Planning Card */}
-                <View className="bg-gray-900/80 rounded-xl shadow-xl overflow-hidden mb-6">
-                  {/* Card Header */}
-                  <View className="bg-gray-800/80 px-4 py-3 border-b border-gray-700">
-                    <Text className="text-white font-semibold">
-                      Enter Your Route Details
-                    </Text>
-                  </View>
-
-                  {/* From Location Input */}
-                  <View className="px-4 pt-4">
-                    <Text className="text-gray-400 mb-1 text-xs font-medium uppercase tracking-wider">
-                      From
-                    </Text>
-                    <View className="bg-gray-800 rounded-lg mb-2 overflow-hidden">
-                      <View className="flex-row items-center px-3 py-3">
-                        <Ionicons name="location" size={20} color="#22c55e" />
-                        {inputState.fromEditable ? (
-                          <TextInput
-                            className="ml-3 flex-1 text-white text-base"
-                            placeholder="Starting point..."
-                            placeholderTextColor="gray"
-                            value={formState.fromLocation}
-                            onChangeText={handleFromChange}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                          />
-                        ) : (
-                          <RNScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            className="ml-3 flex-1"
-                          >
-                            <Text className="text-white text-base py-1">
-                              {formState.fromLocation}
-                            </Text>
-                          </RNScrollView>
-                        )}
-                        {formState.fromLocation.length > 0 && (
-                          <TouchableOpacity
-                            onPress={clearFromLocation}
-                            hitSlop={{
-                              top: 10,
-                              bottom: 10,
-                              left: 10,
-                              right: 10,
-                            }}
-                          >
-                            <Ionicons
-                              name="close-circle"
-                              size={18}
-                              color="gray"
-                            />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Suggestions container for From Location - outside of any ScrollView */}
-                  {fromSuggestions.length > 0 && (
-                    <View className="px-4">
-                      <View className="bg-gray-800/80 rounded-lg mb-4 overflow-hidden shadow-inner">
-                        {fromSuggestions.map((item, index) => (
-                          <TouchableOpacity
-                            key={`from-${index}`}
-                            onPress={() => selectFromSuggestion(item)}
-                            className="px-4 py-3 border-t border-gray-700 flex-row items-center"
-                          >
-                            <Ionicons
-                              name="bus-outline"
-                              size={16}
-                              color="#22c55e"
-                            />
-                            <Text className="text-white ml-2 flex-1">
-                              {item}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Route Connector - now with a working swap button */}
-                  <View className="px-4 flex-row items-center py-2">
-                    <View className="w-0.5 h-6 bg-gray-700 ml-2.5" />
-                    <TouchableOpacity
-                      className="flex-1 items-center"
-                      onPress={handleSwapLocations}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                      <View className="bg-gray-800 p-2 rounded-full">
-                        <Ionicons
-                          name="swap-vertical"
-                          size={20}
-                          color="#22c55e"
-                        />
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* To Location Input */}
-                  <View className="px-4 pb-4">
-                    <Text className="text-gray-400 mb-1 text-xs font-medium uppercase tracking-wider">
-                      To
-                    </Text>
-                    <View className="bg-gray-800 rounded-lg mb-2 overflow-hidden">
-                      <View className="flex-row items-center px-3 py-3">
-                        <Ionicons name="navigate" size={20} color="#22c55e" />
-                        {inputState.toEditable ? (
-                          <TextInput
-                            className="ml-3 flex-1 text-white text-base"
-                            placeholder="Destination..."
-                            placeholderTextColor="gray"
-                            value={formState.toLocation}
-                            onChangeText={handleToChange}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                          />
-                        ) : (
-                          <RNScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            className="ml-3 flex-1"
-                          >
-                            <Text className="text-white text-base py-1">
-                              {formState.toLocation}
-                            </Text>
-                          </RNScrollView>
-                        )}
-                        {formState.toLocation.length > 0 && (
-                          <TouchableOpacity
-                            onPress={clearToLocation}
-                            hitSlop={{
-                              top: 10,
-                              bottom: 10,
-                              left: 10,
-                              right: 10,
-                            }}
-                          >
-                            <Ionicons
-                              name="close-circle"
-                              size={18}
-                              color="gray"
-                            />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Suggestions container for To Location - outside of any ScrollView */}
-                  {toSuggestions.length > 0 && (
-                    <View className="px-4">
-                      <View className="bg-gray-800/80 rounded-lg mb-4 overflow-hidden shadow-inner">
-                        {toSuggestions.map((item, index) => (
-                          <TouchableOpacity
-                            key={`to-${index}`}
-                            onPress={() => selectToSuggestion(item)}
-                            className="px-4 py-3 border-t border-gray-700 flex-row items-center"
-                          >
-                            <Ionicons
-                              name="bus-outline"
-                              size={16}
-                              color="#22c55e"
-                            />
-                            <Text className="text-white ml-2 flex-1">
-                              {item}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-                </View>
-
-                {/* Action Button */}
-                <TouchableOpacity
-                  className={`py-4 rounded-xl mb-6 shadow-lg overflow-hidden ${
-                    !formState.fromLocation || !formState.toLocation || loading
-                      ? "bg-gray-700"
-                      : "bg-green-600"
-                  }`}
-                  onPress={handleConfirmRoute}
-                  disabled={
-                    !formState.fromLocation || !formState.toLocation || loading
-                  }
-                >
-                  {loading ? (
-                    <View className="flex-row justify-center items-center">
-                      <ActivityIndicator size="small" color="#ffffff" />
-                      <Text className="text-white font-bold ml-2">
-                        Calculating...
-                      </Text>
-                    </View>
-                  ) : (
-                    <Text className="text-white font-bold text-center text-base">
-                      Find My Route
-                    </Text>
-                  )}
-                </TouchableOpacity>
-
-                {/* Info Card */}
-                <View className="bg-gray-900/80 rounded-xl p-4 mb-6">
-                  <View className="flex-row items-center mb-3">
-                    <Ionicons
-                      name="information-circle"
-                      size={22}
-                      color="#22c55e"
-                    />
-                    <Text className="text-white font-medium ml-2">
-                      About Bus Routes
-                    </Text>
-                  </View>
-                  <Text className="text-gray-400 text-sm">
-                    We provide direct bus routes between specified locations in
-                    Bangalore. Our suggestions are based on BMTC schedules and
-                    real-time data.
-                  </Text>
-                </View>
-
-                {/* Help and Tips */}
-                <View className="bg-gray-900/80 rounded-xl p-4 mb-10">
-                  <Text className="text-white font-medium mb-3">
-                    Quick Tips
-                  </Text>
-                  <View className="flex-row items-start mb-2">
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={16}
-                      color="#22c55e"
-                      className="mt-0.5"
-                    />
-                    <Text className="text-gray-400 text-sm ml-2 flex-1">
-                      Enter major bus stops for better results
-                    </Text>
-                  </View>
-                  <View className="flex-row items-start mb-2">
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={16}
-                      color="#22c55e"
-                      className="mt-0.5"
-                    />
-                    <Text className="text-gray-400 text-sm ml-2 flex-1">
-                      Select from suggested locations for accuracy
-                    </Text>
-                  </View>
-                  <View className="flex-row items-start">
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={16}
-                      color="#22c55e"
-                      className="mt-0.5"
-                    />
-                    <Text className="text-gray-400 text-sm ml-2 flex-1">
-                      Try nearby stops if no direct routes are found
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </SafeAreaView>
-          </KeyboardAvoidingView>
-        </LinearGradient>
-      </Modal>
-    ),
-    [
-      formState,
-      fromSuggestions,
-      toSuggestions,
-      handleFromChange,
-      handleToChange,
-      selectFromSuggestion,
-      selectToSuggestion,
-      handleConfirmRoute,
-      closeSearchModal,
-      loading,
-      error,
-      handleSwapLocations,
-      inputState,
-      clearFromLocation,
-      clearToLocation,
-    ]
-  );
-
-  // If route is confirmed, show the route view
-  if (routeConfirmed) {
-    return (
-      <View className="flex-1 bg-black">
-        {mapSection}
-        {locateButton}
-
-        <View className="w-full h-1/2 bg-black p-4">
-          <View className="bg-gray-900 border border-gray-800 p-4 rounded-lg mb-4">
-            <View className="flex-row justify-between mb-2">
-              <Text className="text-lg font-semibold text-white">
-                Your Route
-              </Text>
-              <TouchableOpacity
-                onPress={handleEditRoute}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="pencil" size={20} color="#22c55e" />
               </TouchableOpacity>
-            </View>
-
-            <View className="mb-2">
-              <Text className="text-gray-400">From</Text>
-              <Text className="text-white">
-                {truncateText(formState.fromLocation, 40)}
-              </Text>
-            </View>
-
-            <View>
-              <Text className="text-gray-400">To</Text>
-              <Text className="text-white">
-                {truncateText(formState.toLocation, 40)}
-              </Text>
-            </View>
-
-            <View className="flex-row justify-between mt-3 pt-3 border-t border-gray-800">
-              <Text className="text-green-500">Est. Distance: {distance}</Text>
-              <Text className="text-green-500">Est. Time: {duration}</Text>
-            </View>
-          </View>
-
-          <View className="flex-1">
-            <Text className="text-lg font-semibold text-green-500 mb-2">
-              Suggested Routes
-            </Text>
-            <ScrollView className="flex-1">
-              {[1, 2, 3].map((item) => (
-                <TouchableOpacity
-                  key={item}
-                  className="bg-gray-900 border border-gray-800 p-3 mb-3 rounded-lg"
-                >
-                  <Text className="font-medium text-white">
-                    Route Option {item}
-                  </Text>
-                  <View className="flex-row justify-between mt-1">
-                    <Text className="text-green-600">5.2km</Text>
-                    <Text className="text-green-600">30 mins</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-
-        {searchModalVisible && modalContent}
-      </View>
-    );
-  }
-
-  // Default view (when no route is confirmed)
-  return (
-    <View className="flex-1 bg-black">
-      {mapSection}
-      {locateButton}
-
-      <View className="w-full h-1/2 bg-black p-4">
-        <View className="w-full mb-4">
-          <TouchableOpacity
-            className="flex-row items-center bg-gray-900 border border-gray-800 px-3 py-2 rounded-lg"
-            onPress={openSearchModal}
-          >
-            <Ionicons name="search" size={20} color="#22c55e" />
-            <Text className="ml-2 flex-1 text-gray-400">
-              Search destinations...
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View className="flex-1">
-          <Text className="text-lg font-semibold text-green-500 mb-2">
-            Previous Travels
-          </Text>
-          <ScrollView className="flex-1">
-            {[1, 2, 3, 4, 5].map((item) => (
-              <View
-                key={item}
-                className="bg-gray-900 border border-gray-800 p-3 mb-3 rounded-lg"
+              <TouchableOpacity
+                className={`py-3 px-6 rounded-lg items-center ${
+                  plateImage ? "bg-green-600" : "bg-gray-500"
+                }`}
+                onPress={handleSubmit}
+                disabled={!plateImage}
               >
-                <Text className="font-medium text-white">Travel #{item}</Text>
-                <Text className="text-gray-300">
-                  Destination location • Date
+                <Text className="text-white font-bold">
+                  Submit for Verification
                 </Text>
-                <View className="flex-row justify-between mt-1">
-                  <Text className="text-green-600">5.2km</Text>
-                  <Text className="text-green-600">30 mins</Text>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      )}
+    </TouchableOpacity>
+  )
+}
+
+const GiftCard = ({ title, logo, description, requiredPoints, userPoints, onRedeem }) => {
+  const canRedeem = userPoints >= requiredPoints;
+  
+  return (
+    <View className="bg-gray-800 rounded-xl mb-4 overflow-hidden">
+      <View className="p-4">
+        <View className="flex-row justify-between items-center mb-3">
+          <Text className="text-white text-xl font-bold">{title}</Text>
+          <View className="bg-green-700 px-3 py-1 rounded-full">
+            <Text className="text-white font-bold">{requiredPoints} pts</Text>
+          </View>
+        </View>
+        
+        <View className="flex-row items-center">
+          <Image 
+            source={{ uri: logo }} 
+            style={{ width: 80, height: 80 }} 
+            className="rounded-lg mr-4"
+          />
+          <View className="flex-1">
+            <Text className="text-gray-300 mb-2">{description}</Text>
+            <TouchableOpacity
+              className={`py-2 px-4 rounded-lg items-center ${canRedeem ? 'bg-green-600' : 'bg-gray-600'}`}
+              disabled={!canRedeem}
+              onPress={() => onRedeem(title, requiredPoints)}
+            >
+              <Text className="text-white font-bold">
+                {canRedeem ? 'Redeem Now' : 'Not Enough Points'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
-
-      {searchModalVisible && modalContent}
     </View>
   );
 };
 
-export default TrackBus;
+const Redeem = () => {
+  const [activeTab, setActiveTab] = useState('redeem'); // 'redeem' or 'rewards'
+  const [userPoints, setUserPoints] = useState(250); // Mock user points
+  
+  const handleSubmit = async (proof, imageUri, billType) => {
+    if (!imageUri) {
+      throw new Error("Image is required");
+    }
+
+    try {
+      const manipulatedImage = await ImageManipulator.manipulateAsync(
+        imageUri,
+        [{ resize: { width: 800 } }],
+        { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      const response = await fetch(manipulatedImage.uri);
+      const blob = await response.blob();
+      if (blob.size === 0) {
+        throw new Error("Blob is empty");
+      }
+
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve, reject) => {
+        reader.onload = () => {
+          let base64String = reader.result.split(",")[1];
+          base64String = base64String.replace(/\s/g, "");
+          resolve(base64String);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      const imageBase64 = await base64Promise;
+      const uid = await getUID();
+      const serverResponse = await fetch(
+        "http://192.168.64.58:8000/submit-reward",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "authorization": `Bearer ${uid}`,
+          },
+          body: JSON.stringify({
+            billType: billType || "no_bill_type",
+            image: imageBase64,
+          }),
+        }
+      );
+
+      const result = await serverResponse.json();
+
+      if (!serverResponse.ok) {
+        throw new Error(result.error || "Failed to verify proof");
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Request failed:", error);
+      throw error;
+    }
+  }
+  
+  const handleRedeemGiftCard = (cardTitle, pointsCost) => {
+    Alert.alert(
+      "Confirm Redemption",
+      `Are you sure you want to redeem ${cardTitle} for ${pointsCost} points?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Confirm",
+          onPress: () => {
+            setUserPoints(prev => prev - pointsCost);
+            Alert.alert("Success", `You have successfully redeemed ${cardTitle}!`);
+          }
+        }
+      ]
+    );
+  };
+
+  const TabSwitcher = () => (
+    <View className="flex-row bg-gray-800 rounded-full p-1 mx-4 mb-4">
+      <TouchableOpacity 
+        className={`flex-1 py-2 rounded-full ${activeTab === 'redeem' ? 'bg-green-600' : 'bg-transparent'}`}
+        onPress={() => setActiveTab('redeem')}
+      >
+        <Text className="text-white font-bold text-center">Redeem</Text>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        className={`flex-1 py-2 rounded-full ${activeTab === 'rewards' ? 'bg-green-600' : 'bg-transparent'}`}
+        onPress={() => setActiveTab('rewards')}
+      >
+        <Text className="text-white font-bold text-center">Rewards</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const RewardsContent = () => (
+    <ScrollView className="flex-1 px-4">
+      <GiftCard
+        title="Amazon Gift Card"
+        logo="https://m.media-amazon.com/images/G/01/gc/designs/livepreview/a_generic_white_10_us_noto_email_v2016_us-main.CB627448186.png"
+        description="Redeem for anything on Amazon. Valid for 1 year from redemption."
+        requiredPoints={200}
+        userPoints={userPoints}
+        onRedeem={handleRedeemGiftCard}
+      />
+      
+      <GiftCard
+        title="Starbucks Coffee"
+        logo="https://upload.wikimedia.org/wikipedia/en/thumb/d/d3/Starbucks_Corporation_Logo_2011.svg/800px-Starbucks_Corporation_Logo_2011.svg.png"
+        description="Get a $10 Starbucks gift card to enjoy your favorite coffee."
+        requiredPoints={150}
+        userPoints={userPoints}
+        onRedeem={handleRedeemGiftCard}
+      />
+      
+      <GiftCard
+        title="Netflix Subscription"
+        logo="https://cdn.cookielaw.org/logos/dd6b162f-1a32-456a-9cfe-897231c7763c/4345ea78-053c-46d2-b11e-09adaef973dc/Netflix_Logo_PMS.png"
+        description="One month standard Netflix subscription."
+        requiredPoints={300}
+        userPoints={userPoints}
+        onRedeem={handleRedeemGiftCard}
+      />
+      
+      <GiftCard
+        title="Uber Ride Credit"
+        logo="https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Uber_App_Icon.svg/2048px-Uber_App_Icon.svg.png"
+        description="$15 Uber ride credit to help you travel sustainably."
+        requiredPoints={180}
+        userPoints={userPoints}
+        onRedeem={handleRedeemGiftCard}
+      />
+      
+      <GiftCard
+        title="Donation to Green Cause"
+        logo="https://cdn-icons-png.flaticon.com/512/2971/2971416.png"
+        description="We'll donate to plant trees on your behalf."
+        requiredPoints={100}
+        userPoints={userPoints}
+        onRedeem={handleRedeemGiftCard}
+      />
+    </ScrollView>
+  );
+
+  const RedeemContent = () => (
+    <ScrollView className="flex-1 px-4">
+      <RewardCard
+        title="Bus Ticket Reward"
+        icon="bus"
+        description="Public transport"
+        points={10}
+        onSubmit={handleSubmit}
+        billType="bus"
+      />
+
+      <RewardCard
+        title="Electricity Bill Reward"
+        icon="flash"
+        description="Reduced consumption"
+        points={100}
+        onSubmit={handleSubmit}
+        billType="electricity"
+      />
+
+    </ScrollView>
+  );
+
+  return (
+    <View className="flex-1 bg-black pt-12">
+      <View className="absolute top-12 right-4 z-10 bg-green-800 px-3 py-1 rounded-full flex-row items-center">
+        <Ionicons name="star" size={16} color="#FFD700" />
+        <Text className="text-white font-bold ml-1">{userPoints} points</Text>
+      </View>
+      
+      <View className="px-4 py-4">
+        <Text className="text-white text-2xl font-bold">
+          {activeTab === 'redeem' ? 'Redeem Rewards' : 'Claim Rewards'}
+        </Text>
+        <Text className="text-gray-400 mb-2">
+          {activeTab === 'redeem' 
+            ? 'Submit proof to claim your eco-rewards' 
+            : 'Use your points to get these awesome rewards'}
+        </Text>
+      </View>
+      
+      <TabSwitcher />
+      
+      {activeTab === 'redeem' ? <RedeemContent /> : <RewardsContent />}
+    </View>
+  );
+};
+
+export default Redeem;
 
 const styles = StyleSheet.create({});
